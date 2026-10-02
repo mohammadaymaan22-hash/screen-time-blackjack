@@ -4,8 +4,7 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 
 /**
- * Room entity storing the player's persistent state.
- * Single-row table — there's only one player in v1.
+ * Room entity storing the player's persistent state and economy/safeguard configuration.
  */
 @Entity(tableName = "player_state")
 data class PlayerState(
@@ -16,5 +15,35 @@ data class PlayerState(
     val timeBalance: Int = 60,
 
     /** Timestamp of last balance update (epoch millis). */
-    val lastUpdated: Long = System.currentTimeMillis()
+    val lastUpdated: Long = System.currentTimeMillis(),
+
+    /** True if balance resets daily to default (60m); false if rolling balance continues. */
+    val useDailyReset: Boolean = false,
+
+    /** Epoch millis of the last daily reset check. */
+    val lastDailyResetTimestamp: Long = System.currentTimeMillis(),
+
+    /** Default balance awarded on daily reset (default: 60 minutes). */
+    val dailyResetBalance: Int = 60,
+
+    /** Max hands allowed per hour (0 = no limit / disabled). Default: 30 hands/hour. */
+    val maxHandsPerHour: Int = 30,
+
+    /** Consecutive loss threshold before a cooldown is triggered (0 = disabled). Default: 5 losses. */
+    val consecutiveLossThreshold: Int = 5,
+
+    /** Duration of cooldown in minutes when loss threshold is reached. Default: 15 minutes. */
+    val cooldownDurationMinutes: Int = 15,
+
+    /** Epoch millis until which player is in mandatory cooldown (0 if active). */
+    val cooldownUntilTimestamp: Long = 0L,
+
+    /** Hard daily loss cap in minutes (0 = disabled). Default: 60 minutes net loss per day. */
+    val dailyLossCapMinutes: Int = 60,
+
+    /** Cumulative minutes lost today. */
+    val currentDailyLossMinutes: Int = 0,
+
+    /** Count of consecutive losses currently tracked. */
+    val consecutiveLossesCount: Int = 0
 )

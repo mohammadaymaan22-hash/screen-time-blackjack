@@ -12,6 +12,9 @@ interface PlayerStateDao {
     @Query("SELECT * FROM player_state WHERE id = 1")
     suspend fun get(): PlayerState?
 
+    @Query("SELECT * FROM player_state WHERE id = 1")
+    fun getFlow(): kotlinx.coroutines.flow.Flow<PlayerState?>
+
     /** Insert or replace the player state. */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(state: PlayerState)
