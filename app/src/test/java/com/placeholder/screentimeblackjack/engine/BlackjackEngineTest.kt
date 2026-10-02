@@ -344,9 +344,16 @@ class BlackjackEngineTest {
 
     @Test
     fun `balance cannot go below 0`() {
-        val engine = BlackjackEngine(initialBalance = 1)
-        engine.placeBet(1) // balance = 0
-        assertEquals(0, engine.timeBalance)
+        val engine = BlackjackEngine(initialBalance = 1, random = Random(42))
+        engine.placeBet(1)
+        // If hand resolved immediately due to natural blackjack, balance received payout;
+        // otherwise balance is 0 during PlayerTurn
+        when (val s = engine.state) {
+            is GameState.PlayerTurn -> assertEquals(0, engine.timeBalance)
+            is GameState.HandResolved -> assertTrue(engine.timeBalance >= 0)
+            else -> {}
+        }
+        assertTrue("Balance must never be negative", engine.timeBalance >= 0)
     }
 
     @Test(expected = IllegalArgumentException::class)

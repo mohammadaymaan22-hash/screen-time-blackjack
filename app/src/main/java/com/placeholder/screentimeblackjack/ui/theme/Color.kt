@@ -48,3 +48,8 @@ val TextTertiary = Color(0xFF71827A)
 val TextDark = Color(0xFF121413)
 val BorderSubtle = Color(0x26FFFFFF)
 val BorderGold = Color(0x4DD4AF37)
+
+// Aliases for compatibility
+val CasinoSurfaceDark = SurfaceTable
+val CasinoGreenCardBg = SurfaceCard
+val FeltRed = Color(0xFFC62828)

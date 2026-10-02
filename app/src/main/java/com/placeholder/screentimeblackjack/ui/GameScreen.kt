@@ -38,8 +38,11 @@ fun GameScreen(viewModel: GameViewModel) {
     val isReady by viewModel.isReady.collectAsState()
 
     var showRulesDialog by remember { mutableStateOf(false) }
+    var showSettingsDialog by remember { mutableStateOf(false) }
     var selectedWager by remember { mutableIntStateOf(5) }
     var lastWager by remember { mutableIntStateOf(5) }
+
+    val blockedAppAlert by viewModel.blockedAppAlert.collectAsState()
 
     // Clamp selected wager when balance changes
     LaunchedEffect(timeBalance) {
@@ -52,6 +55,16 @@ fun GameScreen(viewModel: GameViewModel) {
 
     if (showRulesDialog) {
         RulesDialog(onDismiss = { showRulesDialog = false })
+    }
+
+    if (showSettingsDialog) {
+        SettingsDialog(
+            viewModel = viewModel,
+            onDismiss = {
+                showSettingsDialog = false
+                viewModel.refreshPermissions()
+            }
+        )
     }
 
     if (!isReady) {
@@ -87,6 +100,7 @@ fun GameScreen(viewModel: GameViewModel) {
                 TopAppBarContent(
                     timeBalance = timeBalance,
                     onOpenRules = { showRulesDialog = true },
+                    onOpenSettings = { showSettingsDialog = true },
                     onAddEmergencyTime = { viewModel.addTime(15) }
                 )
             },
@@ -121,8 +135,47 @@ fun GameScreen(viewModel: GameViewModel) {
                     balanceMinutes = timeBalance,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 4.dp, bottom = 8.dp)
+                        .padding(top = 4.dp, bottom = 4.dp)
                 )
+
+                // Blocked App Interception Alert Banner (when launched via Accessibility gating)
+                if (blockedAppAlert != null) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        colors = CardDefaults.cardColors(containerColor = FeltRed),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.Lock, contentDescription = null, tint = Color.White)
+                                Text(
+                                    text = "Access Blocked: Out of time! Win blackjack hands to unlock.",
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            IconButton(
+                                onClick = { viewModel.clearBlockedAppAlert() },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(Icons.Default.Close, contentDescription = "Dismiss", tint = Color.White)
+                            }
+                        }
+                    }
+                }
 
                 // Dealer Area
                 DealerSection(gameState = gameState)
@@ -143,6 +196,7 @@ fun GameScreen(viewModel: GameViewModel) {
 private fun TopAppBarContent(
     timeBalance: Int,
     onOpenRules: () -> Unit,
+    onOpenSettings: () -> Unit,
     onAddEmergencyTime: () -> Unit
 ) {
     Row(
@@ -206,6 +260,18 @@ private fun TopAppBarContent(
                         modifier = Modifier.size(20.dp)
                     )
                 }
+            }
+
+            IconButton(
+                onClick = onOpenSettings,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "App Gatekeeper Settings",
+                    tint = CasinoGoldLight,
+                    modifier = Modifier.size(20.dp)
+                )
             }
 
             IconButton(

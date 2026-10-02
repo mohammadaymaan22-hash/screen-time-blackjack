@@ -20,6 +20,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        handleBlockedAppIntent(intent)
         setContent {
             ScreenTimeBlackjackTheme {
                 Surface(
@@ -29,6 +30,26 @@ class MainActivity : ComponentActivity() {
                     GameScreen(viewModel = viewModel)
                 }
             }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.refreshPermissions()
+        viewModel.refreshBalanceFromDb()
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleBlockedAppIntent(intent)
+        viewModel.refreshBalanceFromDb()
+    }
+
+    private fun handleBlockedAppIntent(intent: android.content.Intent?) {
+        val blockedPkg = intent?.getStringExtra(com.placeholder.screentimeblackjack.service.AppBlockerAccessibilityService.EXTRA_BLOCKED_APP_TRIGGERED)
+        if (blockedPkg != null) {
+            viewModel.setBlockedAppAlert(blockedPkg)
         }
     }
 }
