@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -24,6 +25,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     private val playerDao = AppDatabase.getInstance(application).playerStateDao()
     private val blockedAppDao = AppDatabase.getInstance(application).blockedAppDao()
+    private val handHistoryDao = AppDatabase.getInstance(application).handHistoryDao()
 
     private var engine: BlackjackEngine? = null
 
@@ -37,11 +39,28 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private val _isReady = MutableStateFlow(false)
     val isReady: StateFlow<Boolean> = _isReady.asStateFlow()
 
+    /** Player state containing economy options and safeguard settings */
+    val playerState: StateFlow<PlayerState> = playerDao.getFlow()
+        .map { it ?: PlayerState() }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            PlayerState()
+        )
+
+    /** Recent hand history stream */
+    val recentHands: StateFlow<List<com.placeholder.screentimeblackjack.data.HandHistory>> =
+        handHistoryDao.getRecentHandsFlow(50).stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            emptyList()
+        )
+
     /** Blocked apps list observed from database */
     val blockedApps: StateFlow<List<com.placeholder.screentimeblackjack.data.BlockedApp>> =
         blockedAppDao.getAllFlow().stateIn(
             viewModelScope,
-            kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000),
+            SharingStarted.WhileSubscribed(5000),
             emptyList()
         )
 
@@ -54,10 +73,14 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private val _blockedAppAlert = MutableStateFlow<String?>(null)
     val blockedAppAlert: StateFlow<String?> = _blockedAppAlert.asStateFlow()
 
+    private val _safeguardBlockReason = MutableStateFlow<String?>(null)
+    val safeguardBlockReason: StateFlow<String?> = _safeguardBlockReason.asStateFlow()
+
     init {
         refreshPermissions()
         seedDefaultBlockedAppsIfEmpty()
         viewModelScope.launch {
+            checkAndApplyDailyReset()
             val saved = playerDao.get()
             val balance = saved?.timeBalance ?: 60
 
@@ -142,10 +165,101 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun clearSafeguardBlock() {
+        _safeguardBlockReason.value = null
+    }
+
+    /** Daily reset vs rolling balance check */
+    suspend fun checkAndApplyDailyReset() {
+        val current = playerDao.get() ?: return
+        if (!current.useDailyReset) return
+
+        val now = System.currentTimeMillis()
+        val oneDayMillis = 24 * 60 * 60 * 1000L
+        if (now - current.lastDailyResetTimestamp >= oneDayMillis) {
+            // Apply daily reset
+            val resetState = current.copy(
+                timeBalance = current.dailyResetBalance,
+                lastDailyResetTimestamp = now,
+                currentDailyLossMinutes = 0,
+                consecutiveLossesCount = 0,
+                cooldownUntilTimestamp = 0L,
+                lastUpdated = now
+            )
+            playerDao.upsert(resetState)
+            engine?.resetBalance(current.dailyResetBalance)
+            _timeBalance.value = current.dailyResetBalance
+            _gameState.value = GameState.Betting(current.dailyResetBalance)
+        }
+    }
+
+    fun updateEconomySettings(
+        useDailyReset: Boolean,
+        dailyResetBalance: Int,
+        maxHandsPerHour: Int,
+        consecutiveLossThreshold: Int,
+        cooldownDurationMinutes: Int,
+        dailyLossCapMinutes: Int
+    ) {
+        viewModelScope.launch {
+            val current = playerDao.get() ?: PlayerState()
+            val updated = current.copy(
+                useDailyReset = useDailyReset,
+                dailyResetBalance = dailyResetBalance,
+                maxHandsPerHour = maxHandsPerHour,
+                consecutiveLossThreshold = consecutiveLossThreshold,
+                cooldownDurationMinutes = cooldownDurationMinutes,
+                dailyLossCapMinutes = dailyLossCapMinutes
+            )
+            playerDao.upsert(updated)
+        }
+    }
+
+    fun clearCooldownOverride() {
+        viewModelScope.launch {
+            val current = playerDao.get() ?: return@launch
+            playerDao.upsert(current.copy(cooldownUntilTimestamp = 0L, consecutiveLossesCount = 0))
+            _safeguardBlockReason.value = null
+        }
+    }
+
     fun placeBet(amount: Int) {
         val eng = engine ?: return
-        eng.placeBet(amount)
-        syncState(eng)
+
+        // Anti-compulsion safeguard validation
+        viewModelScope.launch {
+            val pState = playerDao.get() ?: PlayerState()
+            val now = System.currentTimeMillis()
+
+            // 1. Mandatory Cooldown active check
+            if (pState.cooldownUntilTimestamp > now) {
+                val remMinutes = ((pState.cooldownUntilTimestamp - now) / 60_000L).coerceAtLeast(1)
+                _safeguardBlockReason.value = "Cooldown Active: Take a break! Wait $remMinutes min (after ${pState.consecutiveLossThreshold} consecutive losses)."
+                return@launch
+            }
+
+            // 2. Daily Loss Cap check
+            if (pState.dailyLossCapMinutes > 0 && (pState.currentDailyLossMinutes + amount) > pState.dailyLossCapMinutes) {
+                val remainingLossAllowance = (pState.dailyLossCapMinutes - pState.currentDailyLossMinutes).coerceAtLeast(0)
+                _safeguardBlockReason.value = "Daily Loss Cap Reached: You have lost ${pState.currentDailyLossMinutes}/${pState.dailyLossCapMinutes} min today. Max bet allowed: $remainingLossAllowance min."
+                return@launch
+            }
+
+            // 3. Max hands per hour check
+            if (pState.maxHandsPerHour > 0) {
+                val oneHourAgo = now - 3600_000L
+                val handsInLastHour = handHistoryDao.getHandsCountSince(oneHourAgo)
+                if (handsInLastHour >= pState.maxHandsPerHour) {
+                    _safeguardBlockReason.value = "Hourly Speed Limit Reached: Max ${pState.maxHandsPerHour} hands per hour to prevent compulsion."
+                    return@launch
+                }
+            }
+
+            // Passed all safeguards — proceed with placing bet
+            _safeguardBlockReason.value = null
+            eng.placeBet(amount)
+            syncState(eng)
+        }
     }
 
     fun hit() {
@@ -179,22 +293,60 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Sync the ViewModel's StateFlows from the engine and persist balance.
+     * Sync the ViewModel's StateFlows from the engine, persist balance,
+     * record HandHistory, and update safeguard metrics upon resolution.
      */
     private fun syncState(eng: BlackjackEngine) {
-        _gameState.value = eng.state
+        val newState = eng.state
+        _gameState.value = newState
         _timeBalance.value = eng.timeBalance
-        persistBalance(eng.timeBalance)
-    }
 
-    private fun persistBalance(balance: Int) {
         viewModelScope.launch {
-            val existing = playerDao.get()
-            if (existing != null) {
-                playerDao.updateBalance(balance)
-            } else {
-                playerDao.upsert(PlayerState(timeBalance = balance))
+            val existing = playerDao.get() ?: PlayerState()
+            var consecutiveLosses = existing.consecutiveLossesCount
+            var dailyLoss = existing.currentDailyLossMinutes
+            var cooldownUntil = existing.cooldownUntilTimestamp
+
+            // If hand resolved, write HandHistory and evaluate safeguards
+            if (newState is GameState.HandResolved) {
+                val history = com.placeholder.screentimeblackjack.data.HandHistory(
+                    bet = newState.bet,
+                    payout = newState.payout,
+                    outcome = newState.outcome,
+                    playerCards = newState.playerHand.toString(),
+                    playerValue = newState.playerHand.value,
+                    dealerCards = newState.dealerHand.toString(),
+                    dealerValue = newState.dealerHand.value,
+                    balanceAfter = eng.timeBalance
+                )
+                handHistoryDao.insert(history)
+
+                // Update loss streak and loss cap metrics
+                if (newState.outcome == com.placeholder.screentimeblackjack.engine.HandOutcome.DEALER_WIN) {
+                    consecutiveLosses += 1
+                    dailyLoss += newState.bet
+
+                    // Trigger cooldown if threshold reached
+                    if (existing.consecutiveLossThreshold > 0 && consecutiveLosses >= existing.consecutiveLossThreshold) {
+                        cooldownUntil = System.currentTimeMillis() + (existing.cooldownDurationMinutes * 60_000L)
+                        _safeguardBlockReason.value = "Mandatory Cooldown Activated: ${existing.consecutiveLossThreshold} consecutive losses reached. Cooldown for ${existing.cooldownDurationMinutes} min."
+                    }
+                } else if (newState.outcome == com.placeholder.screentimeblackjack.engine.HandOutcome.PLAYER_WIN ||
+                    newState.outcome == com.placeholder.screentimeblackjack.engine.HandOutcome.PLAYER_BLACKJACK
+                ) {
+                    // Reset consecutive loss streak on win
+                    consecutiveLosses = 0
+                }
             }
+
+            val updatedPlayerState = existing.copy(
+                timeBalance = eng.timeBalance,
+                lastUpdated = System.currentTimeMillis(),
+                consecutiveLossesCount = consecutiveLosses,
+                currentDailyLossMinutes = dailyLoss,
+                cooldownUntilTimestamp = cooldownUntil
+            )
+            playerDao.upsert(updatedPlayerState)
         }
     }
 }

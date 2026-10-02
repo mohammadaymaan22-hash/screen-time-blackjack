@@ -39,10 +39,12 @@ fun GameScreen(viewModel: GameViewModel) {
 
     var showRulesDialog by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
+    var showHistoryDialog by remember { mutableStateOf(false) }
     var selectedWager by remember { mutableIntStateOf(5) }
     var lastWager by remember { mutableIntStateOf(5) }
 
     val blockedAppAlert by viewModel.blockedAppAlert.collectAsState()
+    val safeguardBlockReason by viewModel.safeguardBlockReason.collectAsState()
 
     // Clamp selected wager when balance changes
     LaunchedEffect(timeBalance) {
@@ -55,6 +57,13 @@ fun GameScreen(viewModel: GameViewModel) {
 
     if (showRulesDialog) {
         RulesDialog(onDismiss = { showRulesDialog = false })
+    }
+
+    if (showHistoryDialog) {
+        HandHistoryDialog(
+            viewModel = viewModel,
+            onDismiss = { showHistoryDialog = false }
+        )
     }
 
     if (showSettingsDialog) {
@@ -101,6 +110,7 @@ fun GameScreen(viewModel: GameViewModel) {
                     timeBalance = timeBalance,
                     onOpenRules = { showRulesDialog = true },
                     onOpenSettings = { showSettingsDialog = true },
+                    onOpenHistory = { showHistoryDialog = true },
                     onAddEmergencyTime = { viewModel.addTime(15) }
                 )
             },
@@ -177,6 +187,45 @@ fun GameScreen(viewModel: GameViewModel) {
                     }
                 }
 
+                // Safeguard Block Alert Banner (Anti-compulsion limits)
+                if (safeguardBlockReason != null) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        colors = CardDefaults.cardColors(containerColor = CasinoGoldDark),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.Warning, contentDescription = null, tint = Color.White)
+                                Text(
+                                    text = safeguardBlockReason!!,
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            IconButton(
+                                onClick = { viewModel.clearSafeguardBlock() },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(Icons.Default.Close, contentDescription = "Dismiss", tint = Color.White)
+                            }
+                        }
+                    }
+                }
+
                 // Dealer Area
                 DealerSection(gameState = gameState)
 
@@ -197,6 +246,7 @@ private fun TopAppBarContent(
     timeBalance: Int,
     onOpenRules: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenHistory: () -> Unit,
     onAddEmergencyTime: () -> Unit
 ) {
     Row(
@@ -260,6 +310,18 @@ private fun TopAppBarContent(
                         modifier = Modifier.size(20.dp)
                     )
                 }
+            }
+
+            IconButton(
+                onClick = onOpenHistory,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.DateRange,
+                    contentDescription = "Hand History",
+                    tint = CasinoGoldLight,
+                    modifier = Modifier.size(20.dp)
+                )
             }
 
             IconButton(

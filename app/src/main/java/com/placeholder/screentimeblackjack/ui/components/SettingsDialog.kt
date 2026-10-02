@@ -255,6 +255,175 @@ fun SettingsDialog(
                         }
                     }
 
+                    // Economy Tuning & Anti-Compulsion Safeguards Section
+                    item {
+                        Text(
+                            text = "ECONOMY & SAFEGUARDS",
+                            color = CasinoGold,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        val playerState by viewModel.playerState.collectAsState()
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = CasinoGreenCardBg),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, CasinoGoldDark.copy(alpha = 0.3f))
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                // Daily Reset Toggle
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Daily Balance Reset",
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp
+                                        )
+                                        Text(
+                                            text = if (playerState.useDailyReset) "Resets balance to ${playerState.dailyResetBalance}m each day" else "Rolling balance persists continuously",
+                                            color = Color.White.copy(alpha = 0.65f),
+                                            fontSize = 11.sp
+                                        )
+                                    }
+                                    Switch(
+                                        checked = playerState.useDailyReset,
+                                        onCheckedChange = { checked ->
+                                            viewModel.updateEconomySettings(
+                                                useDailyReset = checked,
+                                                dailyResetBalance = playerState.dailyResetBalance,
+                                                maxHandsPerHour = playerState.maxHandsPerHour,
+                                                consecutiveLossThreshold = playerState.consecutiveLossThreshold,
+                                                cooldownDurationMinutes = playerState.cooldownDurationMinutes,
+                                                dailyLossCapMinutes = playerState.dailyLossCapMinutes
+                                            )
+                                        },
+                                        colors = SwitchDefaults.colors(
+                                            checkedThumbColor = CasinoGold,
+                                            checkedTrackColor = CasinoGoldDark,
+                                            uncheckedThumbColor = Color.Gray,
+                                            uncheckedTrackColor = CasinoSurfaceDark
+                                        )
+                                    )
+                                }
+
+                                HorizontalDivider(color = CasinoGoldDark.copy(alpha = 0.2f))
+
+                                // Safeguard: Max hands per hour
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Speed Limit (Hands/Hour)",
+                                            color = Color.White,
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = 13.sp
+                                        )
+                                        Text(
+                                            text = "Prevents spamming: max ${playerState.maxHandsPerHour} hands/hr",
+                                            color = Color.White.copy(alpha = 0.65f),
+                                            fontSize = 11.sp
+                                        )
+                                    }
+                                    Text(
+                                        text = "${playerState.maxHandsPerHour}/hr",
+                                        color = CasinoGoldLight,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp
+                                    )
+                                }
+
+                                HorizontalDivider(color = CasinoGoldDark.copy(alpha = 0.2f))
+
+                                // Safeguard: Consecutive loss cooldown
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Loss Streak Cooldown",
+                                            color = Color.White,
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = 13.sp
+                                        )
+                                        Text(
+                                            text = "Cooldown of ${playerState.cooldownDurationMinutes}m after ${playerState.consecutiveLossThreshold} straight losses",
+                                            color = Color.White.copy(alpha = 0.65f),
+                                            fontSize = 11.sp
+                                        )
+                                    }
+                                    Text(
+                                        text = "${playerState.consecutiveLossThreshold} losses",
+                                        color = CasinoGoldLight,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp
+                                    )
+                                }
+
+                                HorizontalDivider(color = CasinoGoldDark.copy(alpha = 0.2f))
+
+                                // Safeguard: Daily loss cap
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Hard Daily Loss Cap",
+                                            color = Color.White,
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = 13.sp
+                                        )
+                                        Text(
+                                            text = "Today's net loss: ${playerState.currentDailyLossMinutes} / ${playerState.dailyLossCapMinutes} min",
+                                            color = Color.White.copy(alpha = 0.65f),
+                                            fontSize = 11.sp
+                                        )
+                                    }
+                                    Text(
+                                        text = "${playerState.dailyLossCapMinutes}m cap",
+                                        color = CasinoGoldLight,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp
+                                    )
+                                }
+
+                                if (playerState.cooldownUntilTimestamp > System.currentTimeMillis()) {
+                                    Button(
+                                        onClick = { viewModel.clearCooldownOverride() },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = FeltRed,
+                                            contentColor = Color.White
+                                        ),
+                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text("Override Active Cooldown", fontSize = 12.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     // Monitored Apps List Section
                     item {
                         Text(
