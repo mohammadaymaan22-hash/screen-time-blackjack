@@ -26,11 +26,11 @@ data class PlayerState(
     /** Default balance awarded on daily reset (default: 60 minutes). */
     val dailyResetBalance: Int = 60,
 
-    /** Max hands allowed per hour (0 = no limit / disabled). Default: 30 hands/hour. */
-    val maxHandsPerHour: Int = 30,
+    /** Max hands allowed per hour (0 = no limit / disabled). Default: 0 (disabled). */
+    val maxHandsPerHour: Int = 0,
 
-    /** Consecutive loss threshold before a cooldown is triggered (0 = disabled). Default: 5 losses. */
-    val consecutiveLossThreshold: Int = 5,
+    /** Consecutive loss threshold before a cooldown is triggered (0 = disabled). Default: 0 (disabled). */
+    val consecutiveLossThreshold: Int = 0,
 
     /** Duration of cooldown in minutes when loss threshold is reached. Default: 15 minutes. */
     val cooldownDurationMinutes: Int = 15,
@@ -38,8 +38,8 @@ data class PlayerState(
     /** Epoch millis until which player is in mandatory cooldown (0 if active). */
     val cooldownUntilTimestamp: Long = 0L,
 
-    /** Hard daily loss cap in minutes (0 = disabled). Default: 60 minutes net loss per day. */
-    val dailyLossCapMinutes: Int = 60,
+    /** Hard daily loss cap in minutes (0 = disabled). Default: 0 (disabled). */
+    val dailyLossCapMinutes: Int = 0,
 
     /** Cumulative minutes lost today. */
     val currentDailyLossMinutes: Int = 0,

@@ -82,6 +82,16 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             checkAndApplyDailyReset()
             val saved = playerDao.get()
+            // Reset any leftover cooldowns or restrictions
+            if (saved != null && (saved.cooldownUntilTimestamp > 0 || saved.maxHandsPerHour > 0 || saved.dailyLossCapMinutes > 0)) {
+                playerDao.upsert(saved.copy(
+                    cooldownUntilTimestamp = 0L,
+                    consecutiveLossesCount = 0,
+                    maxHandsPerHour = 0,
+                    consecutiveLossThreshold = 0,
+                    dailyLossCapMinutes = 0
+                ))
+            }
             val balance = saved?.timeBalance ?: 60
 
             engine = BlackjackEngine(initialBalance = balance)
