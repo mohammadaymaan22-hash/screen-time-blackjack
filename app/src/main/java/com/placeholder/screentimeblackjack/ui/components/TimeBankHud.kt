@@ -7,11 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.HourglassBottom
-import androidx.compose.material.icons.filled.HourglassEmpty
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material3.Icon
+import androidx.compose.foundation.Canvas
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -82,6 +78,7 @@ fun TimeBankHud(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Icon with glowing background circle
+            // Stylized Clock Icon with glowing background circle
             Box(
                 modifier = Modifier
                     .size(36.dp)
@@ -90,12 +87,31 @@ fun TimeBankHud(
                     .border(width = 1.dp, color = animatedGlow.copy(alpha = 0.4f), shape = RoundedCornerShape(10.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = if (balanceMinutes > 0) Icons.Default.Schedule else Icons.Default.HourglassEmpty,
-                    contentDescription = "Screen Time",
-                    tint = animatedGlow,
-                    modifier = Modifier.size(20.dp)
-                )
+                Canvas(modifier = Modifier.size(18.dp)) {
+                    val center = androidx.compose.ui.geometry.Offset(size.width / 2f, size.height / 2f)
+                    val radius = size.width / 2f
+                    // Clock circle
+                    drawCircle(
+                        color = animatedGlow,
+                        radius = radius,
+                        center = center,
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.5.dp.toPx())
+                    )
+                    // Hour hand (pointing to 10)
+                    drawLine(
+                        color = animatedGlow,
+                        start = center,
+                        end = androidx.compose.ui.geometry.Offset(center.x - radius * 0.4f, center.y - radius * 0.35f),
+                        strokeWidth = 1.5.dp.toPx()
+                    )
+                    // Minute hand (pointing to 2)
+                    drawLine(
+                        color = animatedGlow,
+                        start = center,
+                        end = androidx.compose.ui.geometry.Offset(center.x + radius * 0.5f, center.y - radius * 0.5f),
+                        strokeWidth = 1.5.dp.toPx()
+                    )
+                }
             }
 
             // Time & Label column
@@ -129,7 +145,7 @@ fun TimeBankHud(
                 }
 
                 Row(
-                    verticalAlignment = Alignment.Baseline,
+                    verticalAlignment = Alignment.Bottom,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
