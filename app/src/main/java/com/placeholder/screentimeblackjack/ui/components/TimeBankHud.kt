@@ -15,7 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -23,22 +22,27 @@ import androidx.compose.ui.unit.sp
 import com.placeholder.screentimeblackjack.ui.theme.*
 
 /**
- * High-end timepiece HUD displaying the player's wagerable screen time currency.
+ * High-end timepiece HUD displaying the player's wagerable screen time currency,
+ * supporting real-time second-by-second countdown and active usage status.
  */
 @Composable
 fun TimeBankHud(
     balanceMinutes: Int,
+    balanceSeconds: Int = balanceMinutes * 60,
+    isActivelyTracking: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    val animatedMinutes by animateIntAsState(
-        targetValue = balanceMinutes,
-        animationSpec = tween(durationMillis = 400),
-        label = "balanceAnim"
+    val totalSeconds = if (balanceSeconds >= 0) balanceSeconds else balanceMinutes * 60
+    val isDepleted = totalSeconds <= 0
+    val isLow = totalSeconds in 1..600 // <= 10 min
+
+    val animatedSeconds by animateIntAsState(
+        targetValue = totalSeconds,
+        animationSpec = tween(durationMillis = 300),
+        label = "secAnim"
     )
 
-    val formattedTime = formatMinutes(animatedMinutes)
-    val isDepleted = balanceMinutes <= 0
-    val isLow = balanceMinutes in 1..10
+    val (timeDisplay, unitLabel) = formatTime(animatedSeconds)
 
     val accentColor = when {
         isDepleted -> TimeBankDanger
@@ -93,7 +97,11 @@ fun TimeBankHud(
                         letterSpacing = 1.2.sp
                     )
                     Text(
-                        text = if (isDepleted) "DIGITAL CURFEW ACTIVE" else "AVAILABLE DEVICE TIME",
+                        text = when {
+                            isDepleted -> "DIGITAL CURFEW ACTIVE"
+                            isActivelyTracking -> "COUNTDOWN ACTIVE (IN USE)"
+                            else -> "PAUSED (ONLY COUNTS IN APPS)"
+                        },
                         color = if (isDepleted) AlertTextRed else TextSecondary,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -108,16 +116,16 @@ fun TimeBankHud(
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    text = formattedTime,
+                    text = timeDisplay,
                     color = accentColor,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.ExtraBold,
                     fontFamily = FontFamily.Monospace
                 )
                 Text(
-                    text = "MIN",
+                    text = unitLabel,
                     color = TextSecondary,
-                    fontSize = 11.sp,
+                    fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace,
                     modifier = Modifier.padding(bottom = 3.dp)
@@ -127,12 +135,25 @@ fun TimeBankHud(
     }
 }
 
-private fun formatMinutes(totalMinutes: Int): String {
-    val hours = totalMinutes / 60
-    val minutes = totalMinutes % 60
-    return if (hours > 0) {
-        "${hours}h ${minutes}m"
-    } else {
-        "$minutes"
+private fun formatTime(totalSeconds: Int): Pair<String, String> {
+    if (totalSeconds <= 0) return Pair("0", "MIN")
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+
+    return when {
+        minutes >= 60 -> {
+            val h = minutes / 60
+            val m = minutes % 60
+            Pair("${h}h ${m}m", "TOTAL")
+        }
+        minutes > 0 && seconds > 0 -> {
+            Pair("${minutes}m ${seconds}s", "")
+        }
+        minutes > 0 -> {
+            Pair("$minutes", "MIN")
+        }
+        else -> {
+            Pair("${seconds}s", "")
+        }
     }
 }

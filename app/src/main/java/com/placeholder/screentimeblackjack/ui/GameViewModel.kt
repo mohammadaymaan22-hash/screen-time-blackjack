@@ -93,6 +93,9 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private val _isDealerHoleCardHidden = MutableStateFlow(true)
     val isDealerHoleCardHidden: StateFlow<Boolean> = _isDealerHoleCardHidden.asStateFlow()
 
+    val timeBalanceSeconds: StateFlow<Int> = com.placeholder.screentimeblackjack.util.UsageTimeTracker.secondsRemaining
+    val isActivelyTracking: StateFlow<Boolean> = com.placeholder.screentimeblackjack.util.UsageTimeTracker.isActivelyTracking
+
     init {
         refreshPermissions()
         seedDefaultBlockedAppsIfEmpty()
@@ -114,6 +117,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             engine = BlackjackEngine(initialBalance = balance)
             _timeBalance.value = balance
             _gameState.value = GameState.Betting(balance)
+            com.placeholder.screentimeblackjack.util.UsageTimeTracker.init(application)
             _isReady.value = true
         }
     }
@@ -171,15 +175,20 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /** Refresh balance when returning to foreground in case AccessibilityService modified it */
+    /** Refresh balance when returning to foreground in case active usage consumed time */
     fun refreshBalanceFromDb() {
+        val app = getApplication<Application>()
+        com.placeholder.screentimeblackjack.util.UsageTimeTracker.init(app)
         viewModelScope.launch {
             val saved = playerDao.get()
-            val current = saved?.timeBalance ?: 60
+            val savedDbMin = saved?.timeBalance ?: 60
+            val trackerSec = com.placeholder.screentimeblackjack.util.UsageTimeTracker.secondsRemaining.value
+            val current = if (trackerSec > 0) (trackerSec + 59) / 60 else savedDbMin
+
             if (current != _timeBalance.value) {
                 engine?.let { eng ->
                     if (current < eng.timeBalance) {
-                        // Time was consumed in background
+                        // Time was consumed in monitored app
                         val diff = eng.timeBalance - current
                         eng.consumeTime(diff)
                     } else if (current > eng.timeBalance) {
@@ -424,12 +433,14 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     fun addTime(minutes: Int) {
         val eng = engine ?: return
         eng.addTime(minutes)
+        com.placeholder.screentimeblackjack.util.UsageTimeTracker.setBalanceMinutes(getApplication(), eng.timeBalance)
         syncState(eng)
     }
 
     fun resetBalance(amount: Int = 60) {
         val eng = engine ?: return
         eng.resetBalance(amount)
+        com.placeholder.screentimeblackjack.util.UsageTimeTracker.setBalanceMinutes(getApplication(), eng.timeBalance)
         syncState(eng)
     }
 
@@ -441,6 +452,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val newState = eng.state
         _gameState.value = newState
         _timeBalance.value = eng.timeBalance
+        com.placeholder.screentimeblackjack.util.UsageTimeTracker.setBalanceMinutes(getApplication(), eng.timeBalance)
 
         viewModelScope.launch {
             val existing = playerDao.get() ?: PlayerState()

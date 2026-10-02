@@ -41,6 +41,8 @@ fun GameScreen(viewModel: GameViewModel) {
     val displayedPlayerCards by viewModel.displayedPlayerCards.collectAsState()
     val displayedDealerCards by viewModel.displayedDealerCards.collectAsState()
     val isDealerHoleCardHidden by viewModel.isDealerHoleCardHidden.collectAsState()
+    val timeBalanceSeconds by viewModel.timeBalanceSeconds.collectAsState()
+    val isActivelyTracking by viewModel.isActivelyTracking.collectAsState()
 
     var showRulesDialog by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
@@ -164,6 +166,8 @@ fun GameScreen(viewModel: GameViewModel) {
                 // Time Bank Currency HUD
                 TimeBankHud(
                     balanceMinutes = timeBalance,
+                    balanceSeconds = timeBalanceSeconds,
+                    isActivelyTracking = isActivelyTracking,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 2.dp, bottom = 2.dp)

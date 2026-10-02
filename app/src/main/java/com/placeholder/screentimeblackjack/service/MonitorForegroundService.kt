@@ -80,5 +80,31 @@ class MonitorForegroundService : Service {
             val intent = Intent(context, MonitorForegroundService::class.java)
             context.stopService(intent)
         }
+
+        fun updateNotification(context: Context, title: String, text: String) {
+            try {
+                val pendingIntent = PendingIntent.getActivity(
+                    context,
+                    0,
+                    Intent(context, MainActivity::class.java),
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+                )
+
+                val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+                    .setContentTitle(title)
+                    .setContentText(text)
+                    .setSmallIcon(android.R.drawable.ic_lock_idle_lock)
+                    .setContentIntent(pendingIntent)
+                    .setOngoing(true)
+                    .setOnlyAlertOnce(true)
+                    .setPriority(NotificationCompat.PRIORITY_LOW)
+                    .build()
+
+                val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+                manager?.notify(NOTIFICATION_ID, notification)
+            } catch (e: Exception) {
+                // Ignore if service not ready
+            }
+        }
     }
 }
