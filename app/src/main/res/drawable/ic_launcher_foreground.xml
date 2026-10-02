@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="0.65"
+        android:scaleY="0.65"
+        android:translateX="18.9"
+        android:translateY="18.9">
+
+        <!-- Card 1 (Tilted Left) - Ace -->
+        <group
+            android:pivotX="45"
+            android:pivotY="55"
+            android:rotation="-15">
+            <!-- Card Body -->
+            <path
+                android:fillColor="#FAFAFA"
+                android:pathData="M30,25 h30 a4,4 0 0,1 4,4 v46 a4,4 0 0,1 -4,4 h-30 a4,4 0 0,1 -4,-4 v-46 a4,4 0 0,1 4,-4 z" />
+            <!-- Card Border -->
+            <path
+                android:strokeColor="#C59D2A"
+                android:strokeWidth="1.5"
+                android:pathData="M30,25 h30 a4,4 0 0,1 4,4 v46 a4,4 0 0,1 -4,4 h-30 a4,4 0 0,1 -4,-4 v-46 a4,4 0 0,1 4,-4 z" />
+            <!-- Spade Icon on Ace -->
+            <path
+                android:fillColor="#181A1B"
+                android:pathData="M45,40 C43,45 37,48 37,53 C37,56 40,58 43,57 C44.5,56.5 45,55 45,55 C45,55 45.5,56.5 47,57 C50,58 53,56 53,53 C53,48 47,45 45,40 Z M44,56 L43,62 L47,62 L46,56 Z" />
+        </group>
+
+        <!-- Card 2 (Tilted Right) - Jack -->
+        <group
+            android:pivotX="58"
+            android:pivotY="55"
+            android:rotation="12">
+            <!-- Card Body -->
+            <path
+                android:fillColor="#FAFAFA"
+                android:pathData="M48,27 h30 a4,4 0 0,1 4,4 v46 a4,4 0 0,1 -4,4 h-30 a4,4 0 0,1 -4,-4 v-46 a4,4 0 0,1 4,-4 z" />
+            <!-- Card Border -->
+            <path
+                android:strokeColor="#C59D2A"
+                android:strokeWidth="1.5"
+                android:pathData="M48,27 h30 a4,4 0 0,1 4,4 v46 a4,4 0 0,1 -4,4 h-30 a4,4 0 0,1 -4,-4 v-46 a4,4 0 0,1 4,-4 z" />
+            <!-- Diamond Icon in Red -->
+            <path
+                android:fillColor="#D32F2F"
+                android:pathData="M63,42 L70,52 L63,62 L56,52 Z" />
+        </group>
+
+        <!-- Golden Casino Chip Accent (Front Center) -->
+        <path
+            android:fillColor="#D4AF37"
+            android:pathData="M54,62 A16,16 0 1,1 53.9,62 Z" />
+        <path
+            android:strokeColor="#8C6D1F"
+            android:strokeWidth="1.5"
+            android:pathData="M54,62 A13,13 0 1,1 53.9,62 Z" />
+        <!-- Chip Inner Core -->
+        <path
+            android:fillColor="#0D251A"
+            android:pathData="M54,62 A9,9 0 1,1 53.9,62 Z" />
+        <!-- 21 Text / Center Star -->
+        <path
+            android:fillColor="#F3D87E"
+            android:pathData="M54,58 L55.5,61.5 L59,62 L56.5,64.5 L57,68 L54,66 L51,68 L51.5,64.5 L49,62 L52.5,61.5 Z" />
+    </group>
+</vector>

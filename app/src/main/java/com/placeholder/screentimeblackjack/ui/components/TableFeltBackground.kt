@@ -8,15 +8,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import com.placeholder.screentimeblackjack.ui.theme.*
 
 /**
- * Background Canvas rendering the casino green felt texture, radial table lighting,
- * and elegant table felt arc markings.
+ * 2-color hyper-minimal table background in pure OLED black with crisp geometric hairline rules.
  */
 @Composable
 fun TableFeltBackground(
@@ -25,66 +23,37 @@ fun TableFeltBackground(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(
-                Brush.radialGradient(
-                    colors = listOf(
-                        CasinoGreenFelt,
-                        CasinoGreenDark,
-                        CasinoGreenDeep
-                    ),
-                    radius = 1200f
-                )
-            )
+            .background(PureBlack)
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val width = size.width
             val height = size.height
 
-            // Felt Table Semi-Oval Arc (Dealer to Player betting arc)
-            val arcTop = height * 0.18f
-            val arcBottom = height * 0.72f
-            val arcWidth = width * 1.3f
+            // Minimalist hairline divider line across upper third
+            drawLine(
+                color = WhiteBorder,
+                start = Offset(x = 24.dp.toPx(), y = height * 0.16f),
+                end = Offset(x = width - 24.dp.toPx(), y = height * 0.16f),
+                strokeWidth = 1.dp.toPx()
+            )
+
+            // Minimal center semi-oval arc bounding betting layout
+            val arcTop = height * 0.22f
+            val arcBottom = height * 0.68f
+            val arcWidth = width * 1.1f
             val arcLeft = (width - arcWidth) / 2f
 
             val feltArc = Path().apply {
                 addOval(Rect(arcLeft, arcTop, arcLeft + arcWidth, arcBottom))
             }
 
-            // Outer subtle gold trim
             drawPath(
                 path = feltArc,
-                color = CasinoGold.copy(alpha = 0.12f),
-                style = Stroke(width = 2.dp.toPx())
-            )
-
-            // Inner felt boundary line
-            val innerWidth = width * 1.15f
-            val innerLeft = (width - innerWidth) / 2f
-            val innerArc = Path().apply {
-                addOval(Rect(innerLeft, arcTop + 24.dp.toPx(), innerLeft + innerWidth, arcBottom - 24.dp.toPx()))
-            }
-
-            drawPath(
-                path = innerArc,
-                color = CasinoGold.copy(alpha = 0.08f),
+                color = WhiteBorder,
                 style = Stroke(
                     width = 1.dp.toPx(),
-                    pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(12f, 8f), 0f)
+                    pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(6f, 6f), 0f)
                 )
-            )
-
-            // Subtle top table spotlight
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        CasinoGreenHighlight.copy(alpha = 0.15f),
-                        androidx.compose.ui.graphics.Color.Transparent
-                    ),
-                    center = Offset(width / 2f, height * 0.45f),
-                    radius = width * 0.6f
-                ),
-                radius = width * 0.6f,
-                center = Offset(width / 2f, height * 0.45f)
             )
         }
     }

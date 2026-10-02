@@ -14,7 +14,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -29,8 +28,7 @@ import com.placeholder.screentimeblackjack.engine.Suit
 import com.placeholder.screentimeblackjack.ui.theme.*
 
 /**
- * Standard playing card component with realistic casino proportions,
- * crisp suit emblems, and smooth 3D flip animation support.
+ * 2-color minimal playing card component in pure black & crisp white.
  */
 @Composable
 fun PlayingCardView(
@@ -39,11 +37,11 @@ fun PlayingCardView(
     modifier: Modifier = Modifier,
     width: Dp = 68.dp,
     height: Dp = 98.dp,
-    elevation: Dp = 6.dp
+    elevation: Dp = 0.dp
 ) {
     val rotation by animateFloatAsState(
         targetValue = if (isFaceUp) 0f else 180f,
-        animationSpec = tween(durationMillis = 400),
+        animationSpec = tween(durationMillis = 350),
         label = "cardFlip"
     )
 
@@ -52,7 +50,6 @@ fun PlayingCardView(
     Box(
         modifier = modifier
             .size(width = width, height = height)
-            .shadow(elevation = elevation, shape = RoundedCornerShape(8.dp), clip = false)
             .graphicsLayer {
                 rotationY = rotation
                 cameraDistance = 14f * density
@@ -60,7 +57,6 @@ fun PlayingCardView(
             .clip(RoundedCornerShape(8.dp))
     ) {
         if (isShowingBack || card == null) {
-            // Flip the back face so it's not mirrored
             CardBackView(
                 modifier = Modifier
                     .fillMaxSize()
@@ -76,46 +72,41 @@ fun PlayingCardView(
 }
 
 /**
- * Card Front: Crisp ivory card paper, dual corner indices, and center suit symbol.
+ * Minimalist Card Front: Pure white card face, jet black typography & suit glyph.
  */
 @Composable
 private fun CardFaceView(
     card: Card,
     modifier: Modifier = Modifier
 ) {
-    val suitColor = when (card.suit) {
-        Suit.HEARTS, Suit.DIAMONDS -> SuitRed
-        Suit.CLUBS, Suit.SPADES -> SuitBlack
-    }
-
     Box(
         modifier = modifier
-            .background(CardFaceBg)
-            .border(width = 1.dp, color = CardBorderColor, shape = RoundedCornerShape(8.dp))
-            .padding(horizontal = 4.dp, vertical = 4.dp)
+            .background(PureWhite)
+            .border(width = 1.dp, color = PureWhite, shape = RoundedCornerShape(8.dp))
+            .padding(horizontal = 5.dp, vertical = 4.dp)
     ) {
         // Top-left index
         CardCornerIndex(
             rank = card.rank.display,
             suitSymbol = card.suit.symbol,
-            color = suitColor,
+            color = PureBlack,
             modifier = Modifier.align(Alignment.TopStart)
         )
 
-        // Center large suit emblem
+        // Center suit glyph
         Text(
             text = card.suit.symbol,
-            color = suitColor.copy(alpha = 0.9f),
-            fontSize = 32.sp,
+            color = PureBlack,
+            fontSize = 30.sp,
             textAlign = TextAlign.Center,
             modifier = Modifier.align(Alignment.Center)
         )
 
-        // Bottom-right inverted index (rotated 180°)
+        // Bottom-right inverted index
         CardCornerIndex(
             rank = card.rank.display,
             suitSymbol = card.suit.symbol,
-            color = suitColor,
+            color = PureBlack,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .rotate(180f)
@@ -140,7 +131,7 @@ private fun CardCornerIndex(
             color = color,
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.SansSerif,
+            fontFamily = FontFamily.Monospace,
             lineHeight = 13.sp
         )
         Text(
@@ -153,53 +144,34 @@ private fun CardCornerIndex(
 }
 
 /**
- * Card Back: Luxurious geometric casino pattern in deep emerald & gold.
+ * Minimalist Card Back: Pure black with crisp white geometric grid.
  */
 @Composable
 fun CardBackView(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
-            .background(CardBackDark)
-            .border(width = 2.dp, color = CardBackGold, shape = RoundedCornerShape(8.dp))
-            .padding(3.dp)
-            .border(width = 1.dp, color = CardBackGold.copy(alpha = 0.6f), shape = RoundedCornerShape(5.dp))
+            .background(PureBlack)
+            .border(width = 1.5.dp, color = PureWhite, shape = RoundedCornerShape(8.dp))
+            .padding(6.dp)
     ) {
-        Canvas(modifier = Modifier.fillMaxSize().padding(3.dp)) {
-            val step = 10.dp.toPx()
-            val strokeWidth = 1.dp.toPx()
-
-            // Diagonal lattice grid
-            var x = -size.height
-            while (x < size.width + size.height) {
-                drawLine(
-                    color = CardBackGold.copy(alpha = 0.35f),
-                    start = Offset(x, 0f),
-                    end = Offset(x + size.height, size.height),
-                    strokeWidth = strokeWidth
-                )
-                drawLine(
-                    color = CardBackGold.copy(alpha = 0.35f),
-                    start = Offset(x, size.height),
-                    end = Offset(x + size.height, 0f),
-                    strokeWidth = strokeWidth
-                )
-                x += step
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .border(width = 1.dp, color = WhiteBorder, shape = RoundedCornerShape(4.dp))
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val step = 10.dp.toPx()
+                var x = 0f
+                while (x < size.width + size.height) {
+                    drawLine(
+                        color = WhiteSubtle,
+                        start = Offset(x, 0f),
+                        end = Offset(x - size.height, size.height),
+                        strokeWidth = 1f
+                    )
+                    x += step
+                }
             }
-
-            // Center gold diamond medallion
-            val center = Offset(size.width / 2f, size.height / 2f)
-            val radius = 10.dp.toPx()
-            drawCircle(
-                color = CardBackDark,
-                radius = radius + 2.dp.toPx(),
-                center = center
-            )
-            drawCircle(
-                color = CardBackGold,
-                radius = radius,
-                center = center,
-                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.5.dp.toPx())
-            )
         }
     }
 }

@@ -2,54 +2,68 @@ package com.placeholder.screentimeblackjack.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Casino Table & Felt
-val CasinoGreenDeep = Color(0xFF07140E)
-val CasinoGreenDark = Color(0xFF0D251A)
-val CasinoGreenFelt = Color(0xFF133B2B)
-val CasinoGreenLight = Color(0xFF1A4D38)
-val CasinoGreenHighlight = Color(0xFF287455)
-val CasinoFeltRim = Color(0xFF2E1C0C)
+// =========================================================================
+// PURE MINIMAL 2-COLOR PALETTE: PURE OLED BLACK & CRISP WHITE
+// =========================================================================
 
-// Gold & Brass Accents
-val CasinoGold = Color(0xFFD4AF37)
-val CasinoGoldLight = Color(0xFFF3D87E)
-val CasinoGoldDark = Color(0xFF8C6D1F)
-val CasinoGoldMuted = Color(0xFF7A6836)
+val PureBlack = Color(0xFF000000)
+val PureWhite = Color(0xFFFFFFFF)
 
-// Cards & Suits
-val CardFaceBg = Color(0xFFFAFAFA)
-val CardBorderColor = Color(0xFFD5D2CA)
-val CardBackDark = Color(0xFF091C14)
-val CardBackGold = Color(0xFFC59D2A)
-val SuitRed = Color(0xFFD32F2F)
-val SuitBlack = Color(0xFF181A1B)
+// Subtle structural levels using strict opacities of white
+val WhiteHigh = Color(0xFFFFFFFF)              // 100% white for active text & high contrast
+val WhiteMedium = Color(0xCCFFFFFF)            // 80% white for secondary content
+val WhiteMuted = Color(0x80FFFFFF)             // 50% white for tertiary labels & subtext
+val WhiteBorder = Color(0x33FFFFFF)            // 20% white for geometric borders
+val WhiteSubtle = Color(0x1AFFFFFF)            // 10% white for soft surface fills
 
-// Time Currency & Glow
-val TimeBankCyan = Color(0xFF00E5FF)
-val TimeBankMint = Color(0xFF00E676)
-val TimeBankAmber = Color(0xFFFFB300)
-val TimeBankDanger = Color(0xFFFF3D00)
-val TimeBankGlow = Color(0x3300E5FF)
+// Base background & surfaces
+val CasinoGreenDeep = PureBlack
+val CasinoGreenDark = PureBlack
+val CasinoGreenFelt = PureBlack
+val CasinoGreenLight = PureBlack
+val CasinoGreenHighlight = PureBlack
+val CasinoFeltRim = PureBlack
 
-// Chips
-val ChipWhite = Color(0xFFEDEDED)
-val ChipBlue = Color(0xFF1E88E5)
-val ChipGreen = Color(0xFF2E7D32)
-val ChipRed = Color(0xFFD32F2F)
-val ChipBlack = Color(0xFF212121)
+// Accents (mapped to crisp white / high contrast)
+val CasinoGold = PureWhite
+val CasinoGoldLight = PureWhite
+val CasinoGoldDark = WhiteMuted
+val CasinoGoldMuted = WhiteBorder
+
+// Card themes (pure high-contrast monochrome)
+val CardFaceBg = PureWhite
+val CardBorderColor = PureWhite
+val CardBackDark = PureBlack
+val CardBackGold = PureWhite
+val SuitRed = PureBlack
+val SuitBlack = PureBlack
+
+// Time currency indicators
+val TimeBankCyan = PureWhite
+val TimeBankMint = PureWhite
+val TimeBankAmber = WhiteMedium
+val TimeBankDanger = WhiteMuted
+val TimeBankGlow = Color(0x26FFFFFF)
+
+// Chips (minimal monochromatic rings)
+val ChipWhite = PureWhite
+val ChipBlue = PureWhite
+val ChipGreen = PureWhite
+val ChipRed = PureWhite
+val ChipBlack = PureBlack
 
 // UI Surfaces & Text
-val SurfaceTable = Color(0xFF0C1B14)
-val SurfaceCard = Color(0xFF142920)
-val SurfaceCardElevated = Color(0xFF1C362B)
-val TextPrimary = Color(0xFFF5F5F2)
-val TextSecondary = Color(0xFFB0BDB6)
-val TextTertiary = Color(0xFF71827A)
-val TextDark = Color(0xFF121413)
-val BorderSubtle = Color(0x26FFFFFF)
-val BorderGold = Color(0x4DD4AF37)
+val SurfaceTable = PureBlack
+val SurfaceCard = PureBlack
+val SurfaceCardElevated = PureBlack
+val TextPrimary = PureWhite
+val TextSecondary = WhiteMuted
+val TextTertiary = WhiteBorder
+val TextDark = PureBlack
+val BorderSubtle = WhiteBorder
+val BorderGold = WhiteBorder
 
-// Aliases for compatibility
-val CasinoSurfaceDark = SurfaceTable
-val CasinoGreenCardBg = SurfaceCard
-val FeltRed = Color(0xFFC62828)
+// Aliases
+val CasinoSurfaceDark = PureBlack
+val CasinoGreenCardBg = PureBlack
+val FeltRed = PureWhite

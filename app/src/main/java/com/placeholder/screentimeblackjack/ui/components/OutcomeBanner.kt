@@ -1,8 +1,6 @@
 package com.placeholder.screentimeblackjack.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.background
@@ -14,9 +12,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -26,8 +21,7 @@ import com.placeholder.screentimeblackjack.engine.HandOutcome
 import com.placeholder.screentimeblackjack.ui.theme.*
 
 /**
- * Animated banner displayed when a hand resolves, celebrating a win or signaling a loss
- * with the exact screen-time minute delta.
+ * 2-color minimal outcome banner in high-contrast black & white.
  */
 @Composable
 fun OutcomeBanner(
@@ -36,83 +30,60 @@ fun OutcomeBanner(
     bet: Int,
     modifier: Modifier = Modifier
 ) {
-    val (title, deltaText, accentColor, gradientColors) = when (outcome) {
-        HandOutcome.PLAYER_BLACKJACK -> Quad(
-            "NATURAL BLACKJACK!",
-            "+$payout min earned",
-            CasinoGold,
-            listOf(Color(0xFF2A2006), Color(0xFF191203))
+    val (title, deltaText) = when (outcome) {
+        HandOutcome.PLAYER_BLACKJACK -> Pair(
+            "NATURAL BLACKJACK",
+            "+$payout min earned"
         )
-        HandOutcome.PLAYER_WIN -> Quad(
-            "YOU WIN!",
-            "+$payout min earned",
-            TimeBankMint,
-            listOf(Color(0xFF0A2B1D), Color(0xFF05170F))
+        HandOutcome.PLAYER_WIN -> Pair(
+            "HAND WON",
+            "+$payout min earned"
         )
-        HandOutcome.PUSH -> Quad(
+        HandOutcome.PUSH -> Pair(
             "PUSH",
-            "Bet returned ($payout min)",
-            TimeBankCyan,
-            listOf(Color(0xFF08252C), Color(0xFF041216))
+            "Wager returned ($payout min)"
         )
-        HandOutcome.DEALER_WIN -> Quad(
-            "DEALER WINS",
-            "-$bet min lost",
-            SuitRed,
-            listOf(Color(0xFF2E0909), Color(0xFF170404))
+        HandOutcome.DEALER_WIN -> Pair(
+            "HAND LOST",
+            "-$bet min deducted"
         )
     }
 
     AnimatedVisibility(
         visible = true,
-        enter = fadeIn(spring(dampingRatio = Spring.DampingRatioMediumBouncy)) +
-                scaleIn(initialScale = 0.85f),
+        enter = fadeIn() + scaleIn(initialScale = 0.95f),
         modifier = modifier
     ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth(0.9f)
-                .shadow(elevation = 12.dp, shape = RoundedCornerShape(16.dp))
-                .clip(RoundedCornerShape(16.dp))
-                .background(Brush.verticalGradient(gradientColors))
-                .border(width = 1.5.dp, color = accentColor, shape = RoundedCornerShape(16.dp))
-                .padding(vertical = 12.dp, horizontal = 20.dp),
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .background(PureBlack)
+                .border(width = 1.dp, color = PureWhite, shape = RoundedCornerShape(8.dp))
+                .padding(horizontal = 16.dp, vertical = 10.dp),
             contentAlignment = Alignment.Center
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 Text(
                     text = title,
-                    color = accentColor,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Black,
-                    fontFamily = FontFamily.Serif,
-                    letterSpacing = 1.5.sp,
+                    color = PureWhite,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    letterSpacing = 1.sp,
                     textAlign = TextAlign.Center
                 )
-
-                Spacer(Modifier.height(4.dp))
-
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(accentColor.copy(alpha = 0.15f))
-                        .padding(horizontal = 10.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = deltaText,
-                        color = accentColor,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace,
-                        textAlign = TextAlign.Center
-                    )
-                }
+                Text(
+                    text = deltaText,
+                    color = WhiteMuted,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace,
+                    textAlign = TextAlign.Center
+                )
             }
         }
     }
 }
-
-private data class Quad<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
