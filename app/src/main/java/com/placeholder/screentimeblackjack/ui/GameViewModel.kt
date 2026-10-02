@@ -70,6 +70,18 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         syncState(eng)
     }
 
+    fun addTime(minutes: Int) {
+        val eng = engine ?: return
+        eng.addTime(minutes)
+        syncState(eng)
+    }
+
+    fun resetBalance(amount: Int = 60) {
+        val eng = engine ?: return
+        eng.resetBalance(amount)
+        syncState(eng)
+    }
+
     /**
      * Sync the ViewModel's StateFlows from the engine and persist balance.
      */

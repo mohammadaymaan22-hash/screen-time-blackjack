@@ -132,6 +132,26 @@ class BlackjackEngine(
     }
 
     /**
+     * Add screen time minutes to the balance (e.g. from app timer or daily reload).
+     */
+    fun addTime(minutes: Int) {
+        require(minutes > 0) { "Minutes to add must be positive, was $minutes" }
+        timeBalance += minutes
+        if (_state is GameState.Betting) {
+            _state = GameState.Betting(timeBalance)
+        }
+    }
+
+    /**
+     * Reset balance to a specific amount (e.g. daily refresh).
+     */
+    fun resetBalance(amount: Int = 60) {
+        require(amount >= 0) { "Amount cannot be negative, was $amount" }
+        timeBalance = amount
+        _state = GameState.Betting(timeBalance)
+    }
+
+    /**
      * Dealer logic: hit until hand value >= 17.
      * Stands on soft 17 (A+6 = soft 17 → stand).
      *
