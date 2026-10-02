@@ -1,3 +1,8 @@
 <resources>
     <string name="app_name">Screen Time Blackjack</string>
+    <string name="accessibility_service_description">Monitors active foreground apps to enforce your screen-time gambling limits and launch Screen Time Blackjack when your balance hits zero.</string>
+    <string name="blocking_service_channel_name">Screen Time Monitor</string>
+    <string name="blocking_service_channel_desc">Active screen time tracking and app gating service</string>
+    <string name="blocking_notification_title">Screen Time Protected</string>
+    <string name="blocking_notification_text">Monitoring active apps. Blackjack bank is in effect.</string>
 </resources>
