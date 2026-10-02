@@ -55,8 +55,8 @@ object UsageTimeTracker {
     @Volatile
     private var isScreenInteractive: Boolean = true
 
-    @Volatile
-    private var isInitialized: Boolean = false
+    private val isInitialized = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val tickerLock = Any()
 
     /** Callback invoked by AccessibilityService when an app is blocked (kick to home) */
     @Volatile
@@ -66,9 +66,8 @@ object UsageTimeTracker {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
 
-    @Synchronized
     fun init(context: Context) {
-        if (isInitialized) return
+        if (!isInitialized.compareAndSet(false, true)) return
         val appContext = context.applicationContext
 
         trackerScope.launch {
@@ -85,7 +84,6 @@ object UsageTimeTracker {
             }
 
             _appSecondsMap.value = initialMap
-            isInitialized = true
             Log.d(TAG, "UsageTimeTracker initialized with ${initialMap.size} monitored apps")
 
             startTickerLoop(appContext)
@@ -93,62 +91,77 @@ object UsageTimeTracker {
     }
 
     private fun startTickerLoop(context: Context) {
-        tickerJob?.cancel()
-        tickerJob = trackerScope.launch {
-            while (isActive) {
-                delay(1000L)
+        synchronized(tickerLock) {
+            tickerJob?.cancel()
+            tickerJob = trackerScope.launch {
+                var lastActiveMs = 0L
 
-                val activePkg = _activeMonitoredPackage.value
-                val isTrackingNow = activePkg != null && isScreenInteractive
+                while (isActive) {
+                    delay(500L)
 
-                _isActivelyTracking.value = isTrackingNow
+                    val activePkg = _activeMonitoredPackage.value
+                    val isTrackingNow = activePkg != null && isScreenInteractive
+                    _isActivelyTracking.value = isTrackingNow
 
-                if (isTrackingNow) {
-                    val currentSec = getAppSeconds(context, activePkg!!)
-                    if (currentSec <= 1) {
-                        // This specific app ran out of time!
-                        setAppSeconds(context, activePkg, 0)
-                        val appName = _activeAppName.value ?: getAppLabel(context, activePkg)
+                    val now = android.os.SystemClock.elapsedRealtime()
 
-                        _activeMonitoredPackage.value = null
-                        _activeAppSeconds.value = 0
-                        _isActivelyTracking.value = false
+                    if (isTrackingNow) {
+                        if (lastActiveMs == 0L) {
+                            lastActiveMs = now
+                        } else {
+                            val elapsedMs = now - lastActiveMs
+                            val elapsedSeconds = (elapsedMs / 1000L).toInt()
 
-                        Log.i(TAG, "Screen time expired for $activePkg. Kicking to home!")
-                        blockCallback?.invoke(activePkg, appName)
+                            if (elapsedSeconds >= 1) {
+                                lastActiveMs += elapsedSeconds * 1000L
 
-                        MonitorForegroundService.updateNotification(
-                            context = context,
-                            title = "$appName: 0m remaining",
-                            text = "Locked • Out of screen time"
-                        )
-                    } else {
-                        val newSec = currentSec - 1
-                        setAppSeconds(context, activePkg, newSec)
-                        _activeAppSeconds.value = newSec
+                                val currentSec = getAppSeconds(context, activePkg!!)
+                                if (currentSec <= elapsedSeconds) {
+                                    setAppSeconds(context, activePkg, 0)
+                                    val appName = _activeAppName.value ?: getAppLabel(context, activePkg)
 
-                        // Sync to database periodically
-                        if (newSec % 30 == 0 || newSec % 60 == 59) {
-                            val newMin = (newSec + 59) / 60
-                            updateDbAppTime(context, activePkg, newMin, newSec)
+                                    _activeMonitoredPackage.value = null
+                                    _activeAppSeconds.value = 0
+                                    _isActivelyTracking.value = false
+                                    lastActiveMs = 0L
+
+                                    Log.i(TAG, "Screen time expired for $activePkg. Kicking to home!")
+                                    blockCallback?.invoke(activePkg, appName)
+
+                                    MonitorForegroundService.updateNotification(
+                                        context = context,
+                                        title = "$appName: 0m remaining",
+                                        text = "Locked • Out of screen time"
+                                    )
+                                } else {
+                                    val newSec = currentSec - elapsedSeconds
+                                    setAppSeconds(context, activePkg, newSec)
+                                    _activeAppSeconds.value = newSec
+
+                                    if (newSec % 30 == 0 || newSec % 60 == 59) {
+                                        val newMin = (newSec + 59) / 60
+                                        updateDbAppTime(context, activePkg, newMin, newSec)
+                                    }
+
+                                    val appName = _activeAppName.value ?: getAppLabel(context, activePkg)
+                                    val min = newSec / 60
+                                    val sec = newSec % 60
+                                    MonitorForegroundService.updateNotification(
+                                        context = context,
+                                        title = "$appName: ${min}m ${sec}s",
+                                        text = "Counting down • Active in foreground"
+                                    )
+                                }
+                            }
                         }
-
-                        val appName = _activeAppName.value ?: getAppLabel(context, activePkg)
-                        val min = newSec / 60
-                        val sec = newSec % 60
+                    } else {
+                        lastActiveMs = 0L
                         MonitorForegroundService.updateNotification(
                             context = context,
-                            title = "$appName: ${min}m ${sec}s",
-                            text = "Counting down • Active in foreground"
+                            title = "Screen Time Monitor",
+                            text = "Idle (Paused) • Not counting in background"
                         )
                     }
-                } else {
-                    // Idle / paused
-                    MonitorForegroundService.updateNotification(
-                        context = context,
-                        title = "Screen Time Monitor",
-                        text = "Idle (Paused) • Not counting in background"
-                    )
                 }
             }
         }
@@ -159,7 +172,7 @@ object UsageTimeTracker {
      */
     fun onPackageVisible(context: Context, packageName: String) {
         val appContext = context.applicationContext
-        if (!isInitialized) init(appContext)
+        if (!isInitialized.get()) init(appContext)
 
         // 1. Ignore transient system overlays (keyboard, notifications, volume panel)
         if (isTransientPackage(packageName)) {

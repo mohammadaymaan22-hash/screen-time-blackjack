@@ -16,7 +16,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -31,8 +30,8 @@ import com.placeholder.screentimeblackjack.ui.theme.*
 import com.placeholder.screentimeblackjack.util.SoundManager
 
 /**
- * Main game screen for Screen Time Blackjack with full luxury casino styling,
- * animated card deals, audio feedback, and tactile controls.
+ * Minimalist Noir screen for Screen Time Blackjack.
+ * Strict Black, White, and Crimson Red aesthetic with zero visual clutter.
  */
 @Composable
 fun GameScreen(viewModel: GameViewModel) {
@@ -50,33 +49,19 @@ fun GameScreen(viewModel: GameViewModel) {
     val appSecondsMap by viewModel.appSecondsMap.collectAsState()
     val activeMonitoredPackage by viewModel.activeMonitoredPackage.collectAsState()
 
-    var showRulesDialog by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
-    var showHistoryDialog by remember { mutableStateOf(false) }
-    var selectedWager by remember { mutableIntStateOf(5) }
-    var lastWager by remember { mutableIntStateOf(5) }
 
-    val blockedAppAlert by viewModel.blockedAppAlert.collectAsState()
+    // Wager strictly starts at 0
+    var selectedWager by remember { mutableIntStateOf(0) }
+    var lastWager by remember { mutableIntStateOf(0) }
+
     val safeguardBlockReason by viewModel.safeguardBlockReason.collectAsState()
 
-    // Clamp selected wager when balance changes
+    // Clamp selected wager when balance decreases, never forcing to non-zero
     LaunchedEffect(timeBalance) {
         if (timeBalance > 0 && selectedWager > timeBalance) {
             selectedWager = timeBalance
-        } else if (selectedWager == 0 && timeBalance > 0) {
-            selectedWager = minOf(5, timeBalance)
         }
-    }
-
-    if (showRulesDialog) {
-        RulesDialog(onDismiss = { showRulesDialog = false })
-    }
-
-    if (showHistoryDialog) {
-        HandHistoryDialog(
-            viewModel = viewModel,
-            onDismiss = { showHistoryDialog = false }
-        )
     }
 
     if (showSettingsDialog) {
@@ -93,49 +78,24 @@ fun GameScreen(viewModel: GameViewModel) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(CasinoGreenDeep),
+                .background(CasinoBlack),
             contentAlignment = Alignment.Center
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                CircularProgressIndicator(color = CasinoGold)
-                Text(
-                    text = "Opening Casino Floor...",
-                    color = CasinoGoldLight,
-                    fontSize = 16.sp,
-                    fontFamily = FontFamily.Serif
-                )
-            }
+            CircularProgressIndicator(color = CasinoRed, strokeWidth = 3.dp)
         }
         return
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Luxury Green Felt Canvas Background
         TableFeltBackground(modifier = Modifier.fillMaxSize())
 
         Scaffold(
             containerColor = Color.Transparent,
             topBar = {
                 TopAppBarContent(
-                    timeBalance = timeBalance,
-                    onOpenRules = {
-                        SoundManager.playTap()
-                        showRulesDialog = true
-                    },
                     onOpenSettings = {
                         SoundManager.playTap()
                         showSettingsDialog = true
-                    },
-                    onOpenHistory = {
-                        SoundManager.playTap()
-                        showHistoryDialog = true
-                    },
-                    onAddEmergencyTime = {
-                        SoundManager.playTap()
-                        viewModel.addTime(15)
                     }
                 )
             },
@@ -153,7 +113,10 @@ fun GameScreen(viewModel: GameViewModel) {
                     },
                     onHit = { viewModel.hit() },
                     onStand = { viewModel.stand() },
-                    onNewHand = { viewModel.startNewHand() },
+                    onNewHand = {
+                        viewModel.startNewHand()
+                        selectedWager = 0
+                    },
                     onEmergencyGrant = {
                         SoundManager.playTap()
                         viewModel.addTime(15)
@@ -169,128 +132,60 @@ fun GameScreen(viewModel: GameViewModel) {
                 verticalArrangement = Arrangement.SpaceBetween,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // App Vault Selector
-                val activeBlockedApps = blockedApps.filter { it.isBlocked }
-                if (activeBlockedApps.isNotEmpty()) {
-                    AppVaultSelector(
-                        blockedApps = activeBlockedApps,
-                        selectedAppPackage = selectedAppPackage,
-                        appSecondsMap = appSecondsMap,
-                        onSelectApp = { pkg ->
-                            SoundManager.playTap()
-                            viewModel.selectApp(pkg)
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 4.dp)
+                // Top Hub: App Vault Selector + Time Bank HUD
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val activeBlockedApps = blockedApps.filter { it.isBlocked }
+                    if (activeBlockedApps.isNotEmpty()) {
+                        AppVaultSelector(
+                            blockedApps = activeBlockedApps,
+                            selectedAppPackage = selectedAppPackage,
+                            appSecondsMap = appSecondsMap,
+                            onSelectApp = { pkg ->
+                                SoundManager.playTap()
+                                viewModel.selectApp(pkg)
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    val selectedApp = blockedApps.find { it.packageName == selectedAppPackage }
+
+                    TimeBankHud(
+                        balanceMinutes = timeBalance,
+                        balanceSeconds = timeBalanceSeconds,
+                        isActivelyTracking = isActivelyTracking && activeMonitoredPackage == selectedAppPackage,
+                        selectedAppName = selectedApp?.appName,
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
 
-                val selectedApp = blockedApps.find { it.packageName == selectedAppPackage }
-
-                // Time Bank Currency HUD
-                TimeBankHud(
-                    balanceMinutes = timeBalance,
-                    balanceSeconds = timeBalanceSeconds,
-                    isActivelyTracking = isActivelyTracking && activeMonitoredPackage == selectedAppPackage,
-                    selectedAppName = selectedApp?.appName,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 2.dp, bottom = 2.dp)
-                )
-
-                // Blocked App Interception Alert Banner (with high contrast dark-wine styling)
-                if (blockedAppAlert != null) {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        colors = CardDefaults.cardColors(containerColor = FeltRed),
-                        border = androidx.compose.foundation.BorderStroke(1.5.dp, AlertBorderRed),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 10.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Lock,
-                                    contentDescription = null,
-                                    tint = AlertBorderRed,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Column {
-                                    Text(
-                                        text = "ACCESS INTERCEPTED",
-                                        color = AlertBorderRed,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        fontFamily = FontFamily.Monospace,
-                                        letterSpacing = 1.sp
-                                    )
-                                    Text(
-                                        text = "Out of screen time! Win hands at the table to unlock monitored apps.",
-                                        color = Color.White,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
-                            }
-                            IconButton(
-                                onClick = {
-                                    SoundManager.playTap()
-                                    viewModel.clearBlockedAppAlert()
-                                },
-                                modifier = Modifier.size(28.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.Close,
-                                    contentDescription = "Dismiss",
-                                    tint = Color.White.copy(alpha = 0.8f)
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Safeguard Block Alert Banner (Anti-compulsion limits)
+                // Safeguard Block Alert (Only when mandatory cooldown or limits hit)
                 if (safeguardBlockReason != null) {
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 4.dp),
-                        colors = CardDefaults.cardColors(containerColor = SurfaceCardElevated),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, CasinoGold),
-                        shape = RoundedCornerShape(12.dp)
+                        colors = CardDefaults.cardColors(containerColor = CasinoRedBg),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, AlertBorderRed),
+                        shape = RoundedCornerShape(10.dp)
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 8.dp),
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            Text(
+                                text = safeguardBlockReason!!,
+                                color = PureWhite,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.Default.Warning, contentDescription = null, tint = CasinoGold)
-                                Text(
-                                    text = safeguardBlockReason!!,
-                                    color = Color.White,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
+                            )
                             IconButton(
                                 onClick = {
                                     SoundManager.playTap()
@@ -298,7 +193,7 @@ fun GameScreen(viewModel: GameViewModel) {
                                 },
                                 modifier = Modifier.size(24.dp)
                             ) {
-                                Icon(Icons.Default.Close, contentDescription = "Dismiss", tint = Color.White)
+                                Icon(Icons.Default.Close, contentDescription = "Dismiss", tint = PureWhite)
                             }
                         }
                     }
@@ -312,7 +207,7 @@ fun GameScreen(viewModel: GameViewModel) {
                     isDealerHoleCardHidden = isDealerHoleCardHidden
                 )
 
-                // Center Table Felt: Outcomes or Bet Status
+                // Center Table Area: Outcome announcement or dealing spinner
                 CenterFeltSection(
                     gameState = gameState,
                     isDealingActive = isDealingActive
@@ -325,118 +220,66 @@ fun GameScreen(viewModel: GameViewModel) {
                     isDealingActive = isDealingActive
                 )
 
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(6.dp))
             }
         }
     }
 }
 
+/**
+ * Minimalist Noir Top Bar with single Settings action.
+ */
 @Composable
 private fun TopAppBarContent(
-    timeBalance: Int,
-    onOpenRules: () -> Unit,
-    onOpenSettings: () -> Unit,
-    onOpenHistory: () -> Unit,
-    onAddEmergencyTime: () -> Unit
+    onOpenSettings: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Brand Title
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .size(28.dp)
+                    .size(26.dp)
                     .clip(CircleShape)
-                    .background(CasinoGold.copy(alpha = 0.2f))
-                    .border(width = 1.dp, color = CasinoGold, shape = CircleShape),
+                    .background(CasinoRed)
+                    .border(width = 1.dp, color = PureWhite, shape = CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = "♠",
-                    color = CasinoGold,
+                    color = PureWhite,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
-            Column {
-                Text(
-                    text = "SCREEN TIME CASINO",
-                    color = CasinoGoldLight,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Serif,
-                    letterSpacing = 1.2.sp
-                )
-                Text(
-                    text = "BLACKJACK TABLE 1",
-                    color = TextSecondary,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Medium,
-                    letterSpacing = 0.8.sp
-                )
-            }
+            Text(
+                text = "SCREEN TIME BLACKJACK",
+                color = PureWhite,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.ExtraBold,
+                fontFamily = FontFamily.Monospace,
+                letterSpacing = 1.2.sp
+            )
         }
 
-        // Actions
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            if (timeBalance <= 0) {
-                IconButton(
-                    onClick = onAddEmergencyTime,
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Add Time",
-                        tint = TimeBankCyan,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-
-            IconButton(
-                onClick = onOpenHistory,
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.DateRange,
-                    contentDescription = "Hand History",
-                    tint = CasinoGoldLight,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-
-            IconButton(
-                onClick = onOpenSettings,
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "App Gatekeeper Settings",
-                    tint = CasinoGoldLight,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-
-            IconButton(
-                onClick = onOpenRules,
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Info,
-                    contentDescription = "House Rules",
-                    tint = CasinoGold,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
+        IconButton(
+            onClick = onOpenSettings,
+            modifier = Modifier.size(36.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Settings,
+                contentDescription = "Settings",
+                tint = PureWhite,
+                modifier = Modifier.size(22.dp)
+            )
         }
     }
 }
@@ -468,7 +311,7 @@ private fun DealerSection(
     val isSoft = if (!isDealerHoleCardHidden && cards.isNotEmpty()) Hand(cards).isSoft else false
 
     HandView(
-        title = "Dealer (Stands on 17)",
+        title = "Dealer",
         cards = cards,
         hideFirstCard = isDealerHoleCardHidden,
         handValue = handValue,
@@ -499,7 +342,7 @@ private fun PlayerSection(
     val isSoft = if (cards.isNotEmpty()) Hand(cards).isSoft else false
 
     HandView(
-        title = "Your Hand",
+        title = "You",
         cards = cards,
         handValue = handValue,
         isSoft = isSoft,
@@ -516,91 +359,42 @@ private fun CenterFeltSection(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(68.dp),
+            .height(54.dp),
         contentAlignment = Alignment.Center
     ) {
         if (isDealingActive) {
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(SurfaceCardElevated.copy(alpha = 0.9f))
-                    .border(width = 1.dp, color = BorderGold, shape = RoundedCornerShape(20.dp))
-                    .padding(horizontal = 20.dp, vertical = 8.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(CasinoSurfaceElevated)
+                    .border(width = 1.dp, color = BorderDark, shape = RoundedCornerShape(16.dp))
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     CircularProgressIndicator(
-                        color = CasinoGold,
-                        modifier = Modifier.size(16.dp),
+                        color = CasinoRed,
+                        modifier = Modifier.size(14.dp),
                         strokeWidth = 2.dp
                     )
                     Text(
                         text = "DEALING...",
-                        color = CasinoGoldLight,
-                        fontSize = 12.sp,
+                        color = PureWhite,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Serif,
-                        letterSpacing = 1.5.sp
+                        fontFamily = FontFamily.Monospace,
+                        letterSpacing = 1.sp
                     )
                 }
             }
-        } else when (gameState) {
-            is GameState.HandResolved -> {
-                OutcomeBanner(
-                    outcome = gameState.outcome,
-                    payout = gameState.payout,
-                    bet = gameState.bet
-                )
-            }
-            is GameState.PlayerTurn -> {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(SurfaceCardElevated.copy(alpha = 0.9f))
-                        .border(width = 1.dp, color = BorderGold, shape = RoundedCornerShape(20.dp))
-                        .padding(horizontal = 16.dp, vertical = 6.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Text(
-                            text = "CURRENT WAGER:",
-                            color = TextSecondary,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp
-                        )
-                        Text(
-                            text = "${gameState.bet} min",
-                            color = CasinoGold,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
-                }
-            }
-            is GameState.Betting -> {
-                Text(
-                    text = "♠ BLACKJACK PAYS 3 TO 2 ♠",
-                    color = CasinoGoldLight.copy(alpha = 0.6f),
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 2.sp,
-                    fontFamily = FontFamily.Serif
-                )
-            }
-            is GameState.DealerTurn -> {
-                Text(
-                    text = "Dealer playing...",
-                    color = CasinoGoldLight,
-                    fontSize = 13.sp,
-                    fontFamily = FontFamily.Serif
-                )
-            }
+        } else if (gameState is GameState.HandResolved) {
+            OutcomeBanner(
+                outcome = gameState.outcome,
+                payout = gameState.payout,
+                bet = gameState.bet
+            )
         }
     }
 }
@@ -623,13 +417,13 @@ private fun BottomControlsDock(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding(),
-        color = SurfaceTable.copy(alpha = 0.96f),
-        border = androidx.compose.foundation.BorderStroke(1.dp, BorderGold.copy(alpha = 0.3f)),
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        color = CasinoSurface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, BorderDark),
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
     ) {
         Column(
             modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = 14.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
                 .fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -654,7 +448,7 @@ private fun BottomControlsDock(
                 }
                 gameState is GameState.DealerTurn -> {
                     Box(Modifier.height(54.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = CasinoGold, modifier = Modifier.size(28.dp))
+                        CircularProgressIndicator(color = CasinoRed, modifier = Modifier.size(24.dp))
                     }
                 }
                 gameState is GameState.HandResolved -> {
@@ -689,26 +483,21 @@ private fun BettingDockContent(
             Text(
                 text = "SCREEN TIME DEPLETED",
                 color = AlertBorderRed,
-                fontSize = 15.sp,
+                fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace,
                 letterSpacing = 1.sp
-            )
-            Text(
-                text = "Your digital curfew is active. Reload minutes to wager more screen time.",
-                color = TextSecondary,
-                fontSize = 12.sp,
-                textAlign = TextAlign.Center
             )
             Button(
                 onClick = onEmergencyGrant,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = TimeBankCyan,
-                    contentColor = TextDark
+                    containerColor = CasinoRed,
+                    contentColor = PureWhite
                 ),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(10.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp)
+                    .height(46.dp)
             ) {
                 Icon(Icons.Default.Add, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
@@ -718,17 +507,18 @@ private fun BettingDockContent(
         return
     }
 
-    // Wager Header with Clear & Wager Count
+    // Wager Header: Amount & Reset to 0
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "SELECT WAGER",
-            color = TextSecondary,
+            text = "WAGER",
+            color = WhiteMuted,
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
+            fontFamily = FontFamily.Monospace,
             letterSpacing = 1.sp
         )
 
@@ -738,34 +528,36 @@ private fun BettingDockContent(
         ) {
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(SurfaceCardElevated)
-                    .border(width = 1.dp, color = BorderGold, shape = RoundedCornerShape(8.dp))
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(CasinoSurfaceElevated)
+                    .border(width = 1.dp, color = if (selectedWager > 0) CasinoRed else BorderDark, shape = RoundedCornerShape(6.dp))
                     .padding(horizontal = 10.dp, vertical = 2.dp)
             ) {
                 Text(
                     text = "$selectedWager min",
-                    color = CasinoGold,
+                    color = if (selectedWager > 0) PureWhite else WhiteSubtle,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace
                 )
             }
 
-            TextButton(
-                onClick = {
-                    SoundManager.playTap()
-                    onWagerChange(1)
-                },
-                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
-                modifier = Modifier.height(28.dp)
-            ) {
-                Text("Reset", color = TextTertiary, fontSize = 11.sp)
+            if (selectedWager > 0) {
+                TextButton(
+                    onClick = {
+                        SoundManager.playTap()
+                        onWagerChange(0) // Reset back to 0
+                    },
+                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+                    modifier = Modifier.height(28.dp)
+                ) {
+                    Text("Clear", color = CasinoRed, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }
 
-    // Tactile Chips Row
+    // Tactile Chips Row (Black, White, and Red)
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceEvenly,
@@ -774,46 +566,46 @@ private fun BettingDockContent(
         CasinoChip(
             label = "1m",
             baseColor = ChipWhite,
-            stripeColor = Color(0xFF455A64),
-            textColor = TextDark,
+            stripeColor = CasinoBlack,
+            textColor = CasinoBlack,
             onClick = { onWagerChange(minOf(timeBalance, selectedWager + 1)) },
             enabled = !isDealingActive && selectedWager + 1 <= timeBalance
         )
         CasinoChip(
             label = "5m",
-            baseColor = ChipBlue,
-            stripeColor = Color.White,
-            textColor = Color.White,
+            baseColor = CasinoRed,
+            stripeColor = PureWhite,
+            textColor = PureWhite,
             onClick = { onWagerChange(minOf(timeBalance, selectedWager + 5)) },
             enabled = !isDealingActive && selectedWager + 5 <= timeBalance
         )
         CasinoChip(
             label = "10m",
-            baseColor = ChipGreen,
-            stripeColor = Color.White,
-            textColor = Color.White,
+            baseColor = CasinoSurfaceElevated,
+            stripeColor = CasinoRed,
+            textColor = PureWhite,
             onClick = { onWagerChange(minOf(timeBalance, selectedWager + 10)) },
             enabled = !isDealingActive && selectedWager + 10 <= timeBalance
         )
         CasinoChip(
             label = "25m",
-            baseColor = ChipRed,
-            stripeColor = CasinoGold,
-            textColor = Color.White,
+            baseColor = CasinoRedDark,
+            stripeColor = PureWhite,
+            textColor = PureWhite,
             onClick = { onWagerChange(minOf(timeBalance, selectedWager + 25)) },
             enabled = !isDealingActive && selectedWager + 25 <= timeBalance
         )
         CasinoChip(
             label = "MAX",
-            baseColor = ChipBlack,
-            stripeColor = CasinoGold,
-            textColor = CasinoGold,
+            baseColor = CasinoBlack,
+            stripeColor = CasinoRedBright,
+            textColor = CasinoRedBright,
             onClick = { onWagerChange(timeBalance) },
             enabled = !isDealingActive && timeBalance > 0
         )
     }
 
-    // Deal Action Button (Lustrous Gold Gradient)
+    // Deal Action Button (Disabled when wager is 0)
     Button(
         onClick = {
             SoundManager.playTap()
@@ -821,23 +613,23 @@ private fun BettingDockContent(
         },
         enabled = !isDealingActive && selectedWager in 1..timeBalance,
         colors = ButtonDefaults.buttonColors(
-            containerColor = CasinoGold,
-            contentColor = TextDark,
-            disabledContainerColor = SurfaceCardElevated,
-            disabledContentColor = TextTertiary
+            containerColor = CasinoRed,
+            contentColor = PureWhite,
+            disabledContainerColor = CasinoSurfaceElevated,
+            disabledContentColor = WhiteSubtle
         ),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(12.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .height(52.dp)
-            .shadow(elevation = 6.dp, shape = RoundedCornerShape(14.dp))
+            .height(50.dp)
+            .shadow(elevation = if (selectedWager > 0) 4.dp else 0.dp, shape = RoundedCornerShape(12.dp))
     ) {
         Text(
-            text = "DEAL HAND ($selectedWager min)",
+            text = if (selectedWager > 0) "DEAL HAND ($selectedWager min)" else "SELECT WAGER (0 min)",
             fontSize = 15.sp,
             fontWeight = FontWeight.ExtraBold,
-            fontFamily = FontFamily.Serif,
-            letterSpacing = 1.2.sp
+            fontFamily = FontFamily.Monospace,
+            letterSpacing = 1.sp
         )
     }
 }
@@ -852,9 +644,9 @@ private fun PlayerTurnDockContent(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // HIT Button (Vibrant Emerald)
+        // HIT Button (Pure White on Black)
         Button(
             onClick = {
                 SoundManager.playTap()
@@ -862,17 +654,15 @@ private fun PlayerTurnDockContent(
             },
             enabled = !isDealingActive,
             colors = ButtonDefaults.buttonColors(
-                containerColor = CasinoGreenLight,
-                contentColor = Color.White
+                containerColor = PureWhite,
+                contentColor = CasinoBlack
             ),
-            border = androidx.compose.foundation.BorderStroke(1.dp, TimeBankMint),
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(12.dp),
             modifier = Modifier
                 .weight(1f)
-                .height(54.dp)
-                .shadow(elevation = 6.dp, shape = RoundedCornerShape(14.dp))
+                .height(52.dp)
         ) {
-            Icon(Icons.Default.Add, contentDescription = null, tint = TimeBankMint)
+            Icon(Icons.Default.Add, contentDescription = null, tint = CasinoBlack)
             Spacer(Modifier.width(6.dp))
             Text(
                 text = "HIT",
@@ -882,7 +672,7 @@ private fun PlayerTurnDockContent(
             )
         }
 
-        // STAND Button (Rich Burgundy)
+        // STAND Button (Vivid Crimson Red)
         Button(
             onClick = {
                 SoundManager.playTap()
@@ -890,17 +680,15 @@ private fun PlayerTurnDockContent(
             },
             enabled = !isDealingActive,
             colors = ButtonDefaults.buttonColors(
-                containerColor = ChipRed,
-                contentColor = Color.White
+                containerColor = CasinoRed,
+                contentColor = PureWhite
             ),
-            border = androidx.compose.foundation.BorderStroke(1.dp, CasinoGold),
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(12.dp),
             modifier = Modifier
                 .weight(1f)
-                .height(54.dp)
-                .shadow(elevation = 6.dp, shape = RoundedCornerShape(14.dp))
+                .height(52.dp)
         ) {
-            Icon(Icons.Default.Check, contentDescription = null, tint = CasinoGold)
+            Icon(Icons.Default.Check, contentDescription = null, tint = PureWhite)
             Spacer(Modifier.width(6.dp))
             Text(
                 text = "STAND",
@@ -929,19 +717,20 @@ private fun HandResolvedDockContent(
             Text(
                 text = "OUT OF SCREEN TIME",
                 color = AlertBorderRed,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
             )
             Button(
                 onClick = onEmergencyGrant,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = TimeBankCyan,
-                    contentColor = TextDark
+                    containerColor = CasinoRed,
+                    contentColor = PureWhite
                 ),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(10.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp)
+                    .height(46.dp)
             ) {
                 Icon(Icons.Default.Add, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
@@ -963,22 +752,23 @@ private fun HandResolvedDockContent(
                     onRebet(lastWager)
                 },
                 enabled = !isDealingActive,
-                border = androidx.compose.foundation.BorderStroke(1.dp, BorderGold),
-                shape = RoundedCornerShape(14.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, CasinoRed),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = PureWhite),
                 modifier = Modifier
                     .weight(1f)
-                    .height(52.dp)
+                    .height(50.dp)
             ) {
                 Text(
                     text = "REBET ($lastWager m)",
-                    color = CasinoGoldLight,
                     fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace
                 )
             }
         }
 
-        // Deal Next Hand
+        // Deal Next Hand (Pure White on Black)
         Button(
             onClick = {
                 SoundManager.playTap()
@@ -986,26 +776,28 @@ private fun HandResolvedDockContent(
             },
             enabled = !isDealingActive,
             colors = ButtonDefaults.buttonColors(
-                containerColor = CasinoGold,
-                contentColor = TextDark
+                containerColor = PureWhite,
+                contentColor = CasinoBlack
             ),
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(12.dp),
             modifier = Modifier
                 .weight(if (lastWager in 1..timeBalance) 1.2f else 1f)
-                .height(52.dp)
-                .shadow(elevation = 6.dp, shape = RoundedCornerShape(14.dp))
+                .height(50.dp)
         ) {
             Text(
                 text = "NEXT HAND",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.ExtraBold,
-                fontFamily = FontFamily.Serif,
+                fontFamily = FontFamily.Monospace,
                 letterSpacing = 1.sp
             )
         }
     }
 }
 
+/**
+ * Clean Noir App Vault Selector: Horizontal chips in Black, White, and Red.
+ */
 @Composable
 fun AppVaultSelector(
     blockedApps: List<com.placeholder.screentimeblackjack.data.BlockedApp>,
@@ -1026,19 +818,19 @@ fun AppVaultSelector(
             val isDepleted = sec <= 0
 
             val borderColor = when {
-                isSelected -> CasinoGold
+                isSelected -> CasinoRed
                 isDepleted -> AlertBorderRed.copy(alpha = 0.6f)
-                else -> BorderGold.copy(alpha = 0.3f)
+                else -> BorderDark
             }
             val containerColor = when {
-                isSelected -> SurfaceCardElevated
-                isDepleted -> Color(0xFF2A1515)
-                else -> SurfaceCard.copy(alpha = 0.85f)
+                isSelected -> CasinoSurfaceElevated
+                isDepleted -> CasinoRedBg
+                else -> CasinoSurface
             }
 
             Surface(
                 onClick = { onSelectApp(app.packageName) },
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(10.dp),
                 color = containerColor,
                 border = androidx.compose.foundation.BorderStroke(if (isSelected) 1.5.dp else 1.dp, borderColor)
             ) {
@@ -1050,32 +842,28 @@ fun AppVaultSelector(
                     if (isSelected) {
                         Text(
                             text = "♠",
-                            color = CasinoGold,
+                            color = CasinoRed,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
                     Text(
                         text = app.appName,
-                        color = if (isSelected) Color.White else TextSecondary,
+                        color = if (isSelected) PureWhite else WhiteMuted,
                         fontSize = 12.sp,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                     )
                     Surface(
-                        shape = RoundedCornerShape(6.dp),
+                        shape = RoundedCornerShape(5.dp),
                         color = when {
-                            isDepleted -> FeltRed
-                            isSelected -> CasinoGold.copy(alpha = 0.25f)
-                            else -> CasinoSurfaceDark
+                            isDepleted -> CasinoRed
+                            isSelected -> CasinoRedDark
+                            else -> CasinoBlack
                         }
                     ) {
                         Text(
                             text = if (isDepleted) "0m" else "${min}m",
-                            color = when {
-                                isDepleted -> Color.White
-                                isSelected -> CasinoGoldLight
-                                else -> TextSecondary
-                            },
+                            color = PureWhite,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.ExtraBold,
                             fontFamily = FontFamily.Monospace,
@@ -1087,4 +875,3 @@ fun AppVaultSelector(
         }
     }
 }
-

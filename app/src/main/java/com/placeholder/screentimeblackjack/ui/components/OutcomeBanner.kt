@@ -13,7 +13,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -24,8 +23,7 @@ import com.placeholder.screentimeblackjack.engine.HandOutcome
 import com.placeholder.screentimeblackjack.ui.theme.*
 
 /**
- * High-impact animated casino outcome banner with rich gradients,
- * celebratory styling for wins, and crisp feedback.
+ * High-impact outcome banner styled with Noir Black, Crisp White, and Crimson Red.
  */
 @Composable
 fun OutcomeBanner(
@@ -34,33 +32,33 @@ fun OutcomeBanner(
     bet: Int,
     modifier: Modifier = Modifier
 ) {
-    val (title, deltaText, gradient, textColor, borderColor) = when (outcome) {
+    val (title, deltaText, bgColor, textColor, borderColor) = when (outcome) {
         HandOutcome.PLAYER_BLACKJACK -> Quint(
             "★ NATURAL BLACKJACK ★",
             "+$payout min screen time earned!",
-            Brush.horizontalGradient(listOf(Color(0xFFD4AF37), Color(0xFFFFE082), Color(0xFFD4AF37))),
-            TextDark,
-            CasinoGoldLight
+            PureWhite,
+            CasinoBlack,
+            CasinoRed
         )
         HandOutcome.PLAYER_WIN -> Quint(
             "HAND WON",
             "+$payout min screen time earned",
-            Brush.horizontalGradient(listOf(Color(0xFF1B5E20), Color(0xFF2E7D32))),
-            Color.White,
-            TimeBankMint
+            CasinoSurfaceElevated,
+            PureWhite,
+            PureWhite
         )
         HandOutcome.PUSH -> Quint(
             "PUSH (TIE)",
             "Wager returned ($payout min)",
-            Brush.horizontalGradient(listOf(Color(0xFF263238), Color(0xFF37474F))),
-            Color.White,
-            BorderSubtle
+            CasinoSurface,
+            WhiteMuted,
+            BorderDark
         )
         HandOutcome.DEALER_WIN -> Quint(
             "HAND LOST",
             "-$bet min deducted",
-            Brush.horizontalGradient(listOf(Color(0xFF3B0B11), Color(0xFF5C101A))),
-            Color.White,
+            CasinoRedBg,
+            AlertBorderRed,
             AlertBorderRed
         )
     }
@@ -73,9 +71,9 @@ fun OutcomeBanner(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .shadow(elevation = 8.dp, shape = RoundedCornerShape(12.dp))
+                .shadow(elevation = 6.dp, shape = RoundedCornerShape(12.dp))
                 .clip(RoundedCornerShape(12.dp))
-                .background(gradient)
+                .background(bgColor)
                 .border(width = 1.5.dp, color = borderColor, shape = RoundedCornerShape(12.dp))
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             contentAlignment = Alignment.Center
@@ -95,7 +93,7 @@ fun OutcomeBanner(
                 )
                 Text(
                     text = deltaText,
-                    color = textColor.copy(alpha = 0.85f),
+                    color = if (outcome == HandOutcome.PLAYER_BLACKJACK) CasinoBlack else WhiteMuted,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     fontFamily = FontFamily.Monospace,

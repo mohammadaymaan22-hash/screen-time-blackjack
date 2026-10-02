@@ -475,11 +475,11 @@ private fun PermissionCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isGranted) CasinoGreenCardBg else Color(0xFF2A1515)
+            containerColor = if (isGranted) CasinoSurface else CasinoRedBg
         ),
         border = androidx.compose.foundation.BorderStroke(
             1.dp,
-            if (isGranted) CasinoGoldDark.copy(alpha = 0.5f) else FeltRed.copy(alpha = 0.6f)
+            if (isGranted) BorderDark else CasinoRed
         )
     ) {
         Column(
@@ -501,7 +501,7 @@ private fun PermissionCard(
                 )
                 Surface(
                     shape = RoundedCornerShape(6.dp),
-                    color = if (isGranted) Color(0xFF1B5E20) else Color(0xFF7F0000)
+                    color = if (isGranted) CasinoSurfaceElevated else CasinoRedDark
                 ) {
                     Text(
                         text = if (isGranted) "READY" else "DISABLED",
@@ -523,8 +523,8 @@ private fun PermissionCard(
             Button(
                 onClick = onActionClick,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isGranted) CasinoSurfaceDark else CasinoGold,
-                    contentColor = if (isGranted) CasinoGold else Color.Black
+                    containerColor = if (isGranted) CasinoSurfaceElevated else CasinoRed,
+                    contentColor = PureWhite
                 ),
                 shape = RoundedCornerShape(6.dp),
                 modifier = Modifier.align(Alignment.End)

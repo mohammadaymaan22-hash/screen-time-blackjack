@@ -3,68 +3,82 @@ package com.placeholder.screentimeblackjack.ui.theme
 import androidx.compose.ui.graphics.Color
 
 // =========================================================================
-// LUXURY VEGAS CASINO PALETTE: MIDNIGHT EMERALD & RADIANT GOLD
+// NOIR CASINO: BLACK, WHITE & CRIMSON RED PALETTE
 // =========================================================================
 
-// Midnight Green Felt Table Tones
-val CasinoGreenDeep = Color(0xFF061510)         // App canvas deep background
-val CasinoGreenDark = Color(0xFF0A2018)         // Edge felt
-val CasinoGreenFelt = Color(0xFF0F2E23)         // Center table felt
-val CasinoGreenLight = Color(0xFF1B4938)        // Interactive emerald surfaces
-val CasinoGreenHighlight = Color(0xFF2E6F57)    // Button borders & active rings
-val CasinoFeltRim = Color(0xFF09120F)           // Outer armrest leather rail
+// Pure Blacks & Dark Obsidian Surfaces
+val CasinoBlack = Color(0xFF000000)               // Pure Void Black
+val CasinoDarkBg = Color(0xFF0A0A0A)              // App canvas deep background
+val CasinoSurface = Color(0xFF141414)             // Card containers & bottom dock
+val CasinoSurfaceElevated = Color(0xFF1E1E1E)     // Elevated chips & modals
+val BorderDark = Color(0xFF2E2E2E)                // Subtle dark hairline border
 
-// Lustrous Vegas Gold Accents
-val CasinoGold = Color(0xFFFFD700)             // Primary gold for buttons, icons & chips
-val CasinoGoldLight = Color(0xFFFFF0A6)        // Soft champagne gold for text highlights
-val CasinoGoldDark = Color(0xFFB8860B)         // Antique bronze gold for borders
-val CasinoGoldMuted = Color(0x59FFD700)        // Subtle 35% gold for felt lines
+// Crisp Whites
+val PureWhite = Color(0xFFFFFFFF)                 // Pure 100% White
+val OffWhite = Color(0xFFF2F2F2)                  // Card face background
+val WhiteMuted = Color(0xB3FFFFFF)                // 70% opacity white
+val WhiteSubtle = Color(0x66FFFFFF)               // 40% opacity white
+val WhiteBorder = Color(0x33FFFFFF)               // 20% white border
 
-// High-Contrast Playing Cards
-val CardFaceBg = Color(0xFFFFFFFF)             // Crisp ivory cardstock
-val CardBorderColor = Color(0xFFDFDCD3)        // Subtle card edge definition
-val CardBackDark = Color(0xFF0E1A24)           // Deep royal navy card reverse
-val CardBackGold = Color(0xFFD4AF37)           // Ornate gold filigree pattern
-val SuitRed = Color(0xFFD32F2F)                // Rich ruby red for Hearts & Diamonds
-val SuitBlack = Color(0xFF1E2022)              // Carbon obsidian black for Spades & Clubs
+// Vivid Crimson Reds
+val CasinoRed = Color(0xFFE50914)                 // Signature vibrant casino red
+val CasinoRedBright = Color(0xFFFF222A)           // Alert / highlight red
+val CasinoRedDark = Color(0xFF8B0000)             // Deep dark crimson
+val CasinoRedBg = Color(0xFF200507)               // Subdued red background container
+val AlertBorderRed = Color(0xFFFF2E36)            // Bright red warning border
+val AlertTextRed = Color(0xFFFF8589)              // Light red warning text
+
+// Backward-compatible semantic bindings (all strictly mapped to Black, White, Red)
+val CasinoGreenDeep = CasinoDarkBg
+val CasinoGreenDark = CasinoBlack
+val CasinoGreenFelt = CasinoSurface
+val CasinoGreenLight = CasinoRed
+val CasinoGreenHighlight = CasinoRedBright
+val CasinoFeltRim = CasinoBlack
+
+// Gold aliases redirected to White or Red
+val CasinoGold = CasinoRed
+val CasinoGoldLight = PureWhite
+val CasinoGoldDark = CasinoRedDark
+val CasinoGoldMuted = Color(0x59E50914)
+
+// Cards
+val CardFaceBg = PureWhite
+val CardBorderColor = Color(0xFFCCCCCC)
+val CardBackDark = Color(0xFF0C0C0C)
+val CardBackGold = CasinoRed
+val SuitRed = CasinoRed
+val SuitBlack = Color(0xFF0A0A0A)
 
 // Screen Time Currency & Indicators
-val TimeBankCyan = Color(0xFF00E5FF)           // Glowing cyan digital balance
-val TimeBankMint = Color(0xFF00E676)           // High balance / win indicator
-val TimeBankAmber = Color(0xFFFFB300)          // Medium / warning balance
-val TimeBankDanger = Color(0xFFFF5252)         // Out of time / locked balance
-val TimeBankGlow = Color(0x3300E5FF)
+val TimeBankCyan = PureWhite
+val TimeBankMint = PureWhite
+val TimeBankAmber = CasinoRed
+val TimeBankDanger = CasinoRedBright
+val TimeBankGlow = Color(0x33E50914)
 
-// Authentic Multi-Toned Casino Chips
-val ChipWhite = Color(0xFFF5F5F7)              // 1m chip base
-val ChipBlue = Color(0xFF1976D2)               // 5m chip base
-val ChipGreen = Color(0xFF2E7D32)              // 10m chip base
-val ChipRed = Color(0xFFC62828)                // 25m chip base
-val ChipBlack = Color(0xFF1E1E1E)              // MAX chip base
+// Chips
+val ChipWhite = PureWhite
+val ChipBlue = Color(0xFF181818)                  // Obsidian Chip
+val ChipGreen = Color(0xFF282828)                 // Charcoal Chip
+val ChipRed = CasinoRed                           // Red Chip
+val ChipBlack = CasinoBlack                       // Pure Black Chip
 
-// Dialog & Dock Surfaces
-val SurfaceTable = Color(0xFF091612)           // Bottom controls dock
-val SurfaceCard = Color(0xFF0D221A)            // Dialog & card container
-val SurfaceCardElevated = Color(0xFF132D23)    // Elevated modals & rule cards
-val BorderSubtle = Color(0x2EFFFFFF)           // Neutral hairline borders
-val BorderGold = Color(0x4DFFD700)             // Elegant gold hairline borders
+// Surfaces & Borders
+val SurfaceTable = CasinoSurface
+val SurfaceCard = CasinoSurface
+val SurfaceCardElevated = CasinoSurfaceElevated
+val BorderSubtle = BorderDark
+val BorderGold = Color(0x80E50914)
 
 // Text Hierarchy
-val TextPrimary = Color(0xFFFFFFFF)            // 100% white
-val TextSecondary = Color(0xB3FFFFFF)          // 70% white
-val TextTertiary = Color(0x66FFFFFF)           // 40% white
-val TextDark = Color(0xFF111915)               // Dark text on gold buttons
+val TextPrimary = PureWhite
+val TextSecondary = WhiteMuted
+val TextTertiary = WhiteSubtle
+val TextDark = CasinoBlack
 
-// Alert Banners (Blocked App Interception & Safeguards)
-val FeltRed = Color(0xFF2C0A0E)                // Deep crimson background
-val AlertBorderRed = Color(0xFFFF5252)         // High-contrast coral red border
-val AlertTextRed = Color(0xFFFFCDD2)           // Soft coral text
-
-// Aliases for compatibility
-val PureBlack = Color(0xFF061510)
-val PureWhite = Color(0xFFFFFFFF)
-val WhiteMuted = Color(0xB3FFFFFF)
-val WhiteBorder = Color(0x33FFFFFF)
-val WhiteSubtle = Color(0x1AFFFFFF)
-val CasinoSurfaceDark = Color(0xFF0D221A)
-val CasinoGreenCardBg = Color(0xFF132D23)
+// Alerts
+val FeltRed = CasinoRedBg
+val CasinoSurfaceDark = CasinoSurface
+val CasinoGreenCardBg = CasinoSurfaceElevated
+val PureBlack = CasinoBlack

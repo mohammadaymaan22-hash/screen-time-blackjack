@@ -9,26 +9,26 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-private val CasinoColorScheme = darkColorScheme(
-    primary = CasinoGold,
-    onPrimary = TextDark,
-    primaryContainer = CasinoGoldDark,
-    onPrimaryContainer = CasinoGoldLight,
-    secondary = TimeBankCyan,
-    onSecondary = TextDark,
-    secondaryContainer = CasinoGreenLight,
-    onSecondaryContainer = TimeBankCyan,
-    tertiary = TimeBankMint,
-    onTertiary = TextDark,
-    background = CasinoGreenDeep,
-    onBackground = TextPrimary,
-    surface = SurfaceCard,
-    onSurface = TextPrimary,
-    surfaceVariant = SurfaceCardElevated,
-    onSurfaceVariant = TextSecondary,
-    error = SuitRed,
-    onError = TextPrimary,
-    outline = BorderGold
+private val NoirColorScheme = darkColorScheme(
+    primary = CasinoRed,
+    onPrimary = PureWhite,
+    primaryContainer = CasinoRedDark,
+    onPrimaryContainer = PureWhite,
+    secondary = PureWhite,
+    onSecondary = CasinoBlack,
+    secondaryContainer = CasinoSurfaceElevated,
+    onSecondaryContainer = PureWhite,
+    tertiary = CasinoRedBright,
+    onTertiary = PureWhite,
+    background = CasinoBlack,
+    onBackground = PureWhite,
+    surface = CasinoSurface,
+    onSurface = PureWhite,
+    surfaceVariant = CasinoSurfaceElevated,
+    onSurfaceVariant = WhiteMuted,
+    error = CasinoRed,
+    onError = PureWhite,
+    outline = BorderDark
 )
 
 @Composable
@@ -40,8 +40,8 @@ fun ScreenTimeBlackjackTheme(
         SideEffect {
             val window = (view.context as? Activity)?.window
             if (window != null) {
-                window.statusBarColor = CasinoGreenDeep.toArgb()
-                window.navigationBarColor = CasinoGreenDeep.toArgb()
+                window.statusBarColor = CasinoBlack.toArgb()
+                window.navigationBarColor = CasinoBlack.toArgb()
                 WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
                 WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = false
             }
@@ -49,7 +49,7 @@ fun ScreenTimeBlackjackTheme(
     }
 
     MaterialTheme(
-        colorScheme = CasinoColorScheme,
+        colorScheme = NoirColorScheme,
         typography = Typography,
         content = content
     )

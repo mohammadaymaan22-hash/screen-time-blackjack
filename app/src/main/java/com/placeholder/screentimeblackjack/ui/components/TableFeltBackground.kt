@@ -5,13 +5,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import com.placeholder.screentimeblackjack.ui.theme.*
 
 /**
- * Luxury Vegas Casino felt table background with smooth radial felt gradient,
- * clean and free of background dotted circles or lines.
+ * Minimalist Noir casino background: deep void black with subtle slate gradation.
  */
 @Composable
 fun TableFeltBackground(
@@ -21,14 +20,12 @@ fun TableFeltBackground(
         modifier = modifier
             .fillMaxSize()
             .background(
-                Brush.radialGradient(
+                Brush.verticalGradient(
                     colors = listOf(
-                        CasinoGreenFelt,
-                        CasinoGreenDark,
-                        CasinoGreenDeep
-                    ),
-                    center = Offset(Float.POSITIVE_INFINITY / 2f, 0f),
-                    radius = 1800f
+                        Color(0xFF0F0F0F),
+                        Color(0xFF050505),
+                        Color(0xFF000000)
+                    )
                 )
             )
     )
