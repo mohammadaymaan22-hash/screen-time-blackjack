@@ -15,9 +15,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.placeholder.screentimeblackjack.ui.theme.*
+import com.placeholder.screentimeblackjack.util.SoundManager
 
 /**
- * Dialog explaining the house rules of Screen Time Blackjack.
+ * Dialog explaining the house rules of Screen Time Blackjack with luxury styling.
  */
 @Composable
 fun RulesDialog(onDismiss: () -> Unit) {
@@ -49,42 +50,50 @@ fun RulesDialog(onDismiss: () -> Unit) {
                 // Rule Items
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     RuleItem(
+                        suit = "♠",
                         title = "Screen Time Currency",
                         description = "Every minute in your bank represents actual device screen time. Win hands to earn more phone time; lose and your time runs out."
                     )
                     RuleItem(
+                        suit = "♥",
                         title = "Blackjack Pays 3 to 2",
                         description = "A natural 2-card 21 awards 1.5x your wager in bonus minutes (e.g. 10m bet pays +15m)."
                     )
                     RuleItem(
+                        suit = "♦",
                         title = "Dealer Stands on Soft 17",
                         description = "The dealer must draw until reaching at least 17, and always stands on soft 17 (Ace + 6)."
                     )
                     RuleItem(
+                        suit = "♣",
                         title = "European No-Hole-Card",
                         description = "The dealer reveals and resolves their full hand after you complete your turn."
                     )
                     RuleItem(
+                        suit = "♠",
                         title = "Ties are a Push",
                         description = "If both you and the dealer tie, your original wager is returned with zero penalty."
                     )
                 }
 
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(4.dp))
 
                 Button(
-                    onClick = onDismiss,
+                    onClick = {
+                        SoundManager.playTap()
+                        onDismiss()
+                    },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = CasinoGold,
                         contentColor = TextDark
                     ),
                     shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().height(48.dp)
                 ) {
                     Text(
                         "Understood",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
+                        fontSize = 15.sp
                     )
                 }
             }
@@ -93,19 +102,33 @@ fun RulesDialog(onDismiss: () -> Unit) {
 }
 
 @Composable
-private fun RuleItem(title: String, description: String) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+private fun RuleItem(suit: String, title: String, description: String) {
+    val suitColor = if (suit in listOf("♥", "♦")) SuitRed else CasinoGoldLight
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
         Text(
-            text = "♦ $title",
-            color = CasinoGoldLight,
+            text = suit,
+            color = suitColor,
             fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(top = 1.dp)
         )
-        Text(
-            text = description,
-            color = TextSecondary,
-            fontSize = 12.sp,
-            lineHeight = 17.sp
-        )
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = title,
+                color = CasinoGoldLight,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = description,
+                color = TextSecondary,
+                fontSize = 12.sp,
+                lineHeight = 16.sp
+            )
+        }
     }
 }

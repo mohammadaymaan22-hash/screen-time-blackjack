@@ -23,19 +23,24 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.placeholder.screentimeblackjack.engine.Card
 import com.placeholder.screentimeblackjack.engine.GameState
-import com.placeholder.screentimeblackjack.engine.HandOutcome
+import com.placeholder.screentimeblackjack.engine.Hand
 import com.placeholder.screentimeblackjack.ui.components.*
 import com.placeholder.screentimeblackjack.ui.theme.*
+import com.placeholder.screentimeblackjack.util.SoundManager
 
 /**
- * Main game screen for Screen Time Blackjack with full casino styling,
- * responsive felt table layout, and tactile controls.
+ * Main game screen for Screen Time Blackjack with full luxury casino styling,
+ * animated card deals, audio feedback, and tactile controls.
  */
 @Composable
 fun GameScreen(viewModel: GameViewModel) {
     val gameState by viewModel.gameState.collectAsState()
     val timeBalance by viewModel.timeBalance.collectAsState()
     val isReady by viewModel.isReady.collectAsState()
+    val isDealingActive by viewModel.isDealingActive.collectAsState()
+    val displayedPlayerCards by viewModel.displayedPlayerCards.collectAsState()
+    val displayedDealerCards by viewModel.displayedDealerCards.collectAsState()
+    val isDealerHoleCardHidden by viewModel.isDealerHoleCardHidden.collectAsState()
 
     var showRulesDialog by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
@@ -108,15 +113,28 @@ fun GameScreen(viewModel: GameViewModel) {
             topBar = {
                 TopAppBarContent(
                     timeBalance = timeBalance,
-                    onOpenRules = { showRulesDialog = true },
-                    onOpenSettings = { showSettingsDialog = true },
-                    onOpenHistory = { showHistoryDialog = true },
-                    onAddEmergencyTime = { viewModel.addTime(15) }
+                    onOpenRules = {
+                        SoundManager.playTap()
+                        showRulesDialog = true
+                    },
+                    onOpenSettings = {
+                        SoundManager.playTap()
+                        showSettingsDialog = true
+                    },
+                    onOpenHistory = {
+                        SoundManager.playTap()
+                        showHistoryDialog = true
+                    },
+                    onAddEmergencyTime = {
+                        SoundManager.playTap()
+                        viewModel.addTime(15)
+                    }
                 )
             },
             bottomBar = {
                 BottomControlsDock(
                     gameState = gameState,
+                    isDealingActive = isDealingActive,
                     timeBalance = timeBalance,
                     selectedWager = selectedWager,
                     lastWager = lastWager,
@@ -128,7 +146,10 @@ fun GameScreen(viewModel: GameViewModel) {
                     onHit = { viewModel.hit() },
                     onStand = { viewModel.stand() },
                     onNewHand = { viewModel.startNewHand() },
-                    onEmergencyGrant = { viewModel.addTime(15) }
+                    onEmergencyGrant = {
+                        SoundManager.playTap()
+                        viewModel.addTime(15)
+                    }
                 )
             }
         ) { innerPadding ->
@@ -145,43 +166,66 @@ fun GameScreen(viewModel: GameViewModel) {
                     balanceMinutes = timeBalance,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 4.dp, bottom = 4.dp)
+                        .padding(top = 2.dp, bottom = 2.dp)
                 )
 
-                // Blocked App Interception Alert Banner (when launched via Accessibility gating)
+                // Blocked App Interception Alert Banner (with high contrast dark-wine styling)
                 if (blockedAppAlert != null) {
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 4.dp),
                         colors = CardDefaults.cardColors(containerColor = FeltRed),
-                        shape = RoundedCornerShape(10.dp)
+                        border = androidx.compose.foundation.BorderStroke(1.5.dp, AlertBorderRed),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Icon(Icons.Default.Lock, contentDescription = null, tint = Color.White)
-                                Text(
-                                    text = "Access Blocked: Out of time! Win blackjack hands to unlock.",
-                                    color = Color.White,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold
+                                Icon(
+                                    imageVector = Icons.Default.Lock,
+                                    contentDescription = null,
+                                    tint = AlertBorderRed,
+                                    modifier = Modifier.size(20.dp)
                                 )
+                                Column {
+                                    Text(
+                                        text = "ACCESS INTERCEPTED",
+                                        color = AlertBorderRed,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontFamily = FontFamily.Monospace,
+                                        letterSpacing = 1.sp
+                                    )
+                                    Text(
+                                        text = "Out of screen time! Win hands at the table to unlock monitored apps.",
+                                        color = Color.White,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
                             }
                             IconButton(
-                                onClick = { viewModel.clearBlockedAppAlert() },
-                                modifier = Modifier.size(24.dp)
+                                onClick = {
+                                    SoundManager.playTap()
+                                    viewModel.clearBlockedAppAlert()
+                                },
+                                modifier = Modifier.size(28.dp)
                             ) {
-                                Icon(Icons.Default.Close, contentDescription = "Dismiss", tint = Color.White)
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Dismiss",
+                                    tint = Color.White.copy(alpha = 0.8f)
+                                )
                             }
                         }
                     }
@@ -193,13 +237,14 @@ fun GameScreen(viewModel: GameViewModel) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 4.dp),
-                        colors = CardDefaults.cardColors(containerColor = CasinoGoldDark),
-                        shape = RoundedCornerShape(10.dp)
+                        colors = CardDefaults.cardColors(containerColor = SurfaceCardElevated),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, CasinoGold),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                                .padding(horizontal = 14.dp, vertical = 8.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -208,7 +253,7 @@ fun GameScreen(viewModel: GameViewModel) {
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Icon(Icons.Default.Warning, contentDescription = null, tint = Color.White)
+                                Icon(Icons.Default.Warning, contentDescription = null, tint = CasinoGold)
                                 Text(
                                     text = safeguardBlockReason!!,
                                     color = Color.White,
@@ -217,7 +262,10 @@ fun GameScreen(viewModel: GameViewModel) {
                                 )
                             }
                             IconButton(
-                                onClick = { viewModel.clearSafeguardBlock() },
+                                onClick = {
+                                    SoundManager.playTap()
+                                    viewModel.clearSafeguardBlock()
+                                },
                                 modifier = Modifier.size(24.dp)
                             ) {
                                 Icon(Icons.Default.Close, contentDescription = "Dismiss", tint = Color.White)
@@ -227,15 +275,27 @@ fun GameScreen(viewModel: GameViewModel) {
                 }
 
                 // Dealer Area
-                DealerSection(gameState = gameState)
+                DealerSection(
+                    gameState = gameState,
+                    displayedDealerCards = displayedDealerCards,
+                    isDealingActive = isDealingActive,
+                    isDealerHoleCardHidden = isDealerHoleCardHidden
+                )
 
                 // Center Table Felt: Outcomes or Bet Status
-                CenterFeltSection(gameState = gameState)
+                CenterFeltSection(
+                    gameState = gameState,
+                    isDealingActive = isDealingActive
+                )
 
                 // Player Area
-                PlayerSection(gameState = gameState)
+                PlayerSection(
+                    gameState = gameState,
+                    displayedPlayerCards = displayedPlayerCards,
+                    isDealingActive = isDealingActive
+                )
 
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(4.dp))
             }
         }
     }
@@ -352,39 +412,35 @@ private fun TopAppBarContent(
 }
 
 @Composable
-private fun DealerSection(gameState: GameState) {
-    val (dealerCards, hideHoleCard, handValue, isSoft, isBust, isBlackjack) = when (gameState) {
-        is GameState.Betting -> Hex(emptyList<Card>(), false, null, false, false, false)
-        is GameState.PlayerTurn -> Hex(
-            gameState.dealerHand.cards,
-            true,
-            null,
-            false,
-            false,
-            false
-        )
-        is GameState.DealerTurn -> Hex(
-            gameState.dealerHand.cards,
-            false,
-            gameState.dealerHand.value,
-            gameState.dealerHand.isSoft,
-            gameState.dealerHand.isBust(),
-            gameState.dealerHand.isBlackjack()
-        )
-        is GameState.HandResolved -> Hex(
-            gameState.dealerHand.cards,
-            false,
-            gameState.dealerHand.value,
-            gameState.dealerHand.isSoft,
-            gameState.dealerHand.isBust(),
-            gameState.dealerHand.isBlackjack()
-        )
+private fun DealerSection(
+    gameState: GameState,
+    displayedDealerCards: List<Card>,
+    isDealingActive: Boolean,
+    isDealerHoleCardHidden: Boolean
+) {
+    val cards = if (isDealingActive || displayedDealerCards.isNotEmpty()) {
+        displayedDealerCards
+    } else when (gameState) {
+        is GameState.PlayerTurn -> gameState.dealerHand.cards
+        is GameState.DealerTurn -> gameState.dealerHand.cards
+        is GameState.HandResolved -> gameState.dealerHand.cards
+        is GameState.Betting -> emptyList()
     }
+
+    val handValue = if (isDealerHoleCardHidden || cards.isEmpty()) {
+        null
+    } else {
+        Hand(cards).value
+    }
+
+    val isBust = if (!isDealerHoleCardHidden && cards.isNotEmpty()) Hand(cards).isBust() else false
+    val isBlackjack = if (!isDealerHoleCardHidden && cards.size == 2) Hand(cards).isBlackjack() else false
+    val isSoft = if (!isDealerHoleCardHidden && cards.isNotEmpty()) Hand(cards).isSoft else false
 
     HandView(
         title = "Dealer (Stands on 17)",
-        cards = dealerCards,
-        hideFirstCard = hideHoleCard,
+        cards = cards,
+        hideFirstCard = isDealerHoleCardHidden,
         handValue = handValue,
         isSoft = isSoft,
         isBlackjack = isBlackjack,
@@ -393,35 +449,28 @@ private fun DealerSection(gameState: GameState) {
 }
 
 @Composable
-private fun PlayerSection(gameState: GameState) {
-    val (playerCards, handValue, isSoft, isBust, isBlackjack) = when (gameState) {
-        is GameState.Betting -> Quint(emptyList<Card>(), null, false, false, false)
-        is GameState.PlayerTurn -> Quint(
-            gameState.playerHand.cards,
-            gameState.playerHand.value,
-            gameState.playerHand.isSoft,
-            gameState.playerHand.isBust(),
-            gameState.playerHand.isBlackjack()
-        )
-        is GameState.DealerTurn -> Quint(
-            gameState.playerHand.cards,
-            gameState.playerHand.value,
-            gameState.playerHand.isSoft,
-            gameState.playerHand.isBust(),
-            gameState.playerHand.isBlackjack()
-        )
-        is GameState.HandResolved -> Quint(
-            gameState.playerHand.cards,
-            gameState.playerHand.value,
-            gameState.playerHand.isSoft,
-            gameState.playerHand.isBust(),
-            gameState.playerHand.isBlackjack()
-        )
+private fun PlayerSection(
+    gameState: GameState,
+    displayedPlayerCards: List<Card>,
+    isDealingActive: Boolean
+) {
+    val cards = if (isDealingActive || displayedPlayerCards.isNotEmpty()) {
+        displayedPlayerCards
+    } else when (gameState) {
+        is GameState.PlayerTurn -> gameState.playerHand.cards
+        is GameState.DealerTurn -> gameState.playerHand.cards
+        is GameState.HandResolved -> gameState.playerHand.cards
+        is GameState.Betting -> emptyList()
     }
+
+    val handValue = if (cards.isEmpty()) null else Hand(cards).value
+    val isBust = if (cards.isNotEmpty()) Hand(cards).isBust() else false
+    val isBlackjack = if (cards.size == 2) Hand(cards).isBlackjack() else false
+    val isSoft = if (cards.isNotEmpty()) Hand(cards).isSoft else false
 
     HandView(
         title = "Your Hand",
-        cards = playerCards,
+        cards = cards,
         handValue = handValue,
         isSoft = isSoft,
         isBlackjack = isBlackjack,
@@ -430,14 +479,44 @@ private fun PlayerSection(gameState: GameState) {
 }
 
 @Composable
-private fun CenterFeltSection(gameState: GameState) {
+private fun CenterFeltSection(
+    gameState: GameState,
+    isDealingActive: Boolean
+) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(72.dp),
+            .height(68.dp),
         contentAlignment = Alignment.Center
     ) {
-        when (gameState) {
+        if (isDealingActive) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(SurfaceCardElevated.copy(alpha = 0.9f))
+                    .border(width = 1.dp, color = BorderGold, shape = RoundedCornerShape(20.dp))
+                    .padding(horizontal = 20.dp, vertical = 8.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    CircularProgressIndicator(
+                        color = CasinoGold,
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp
+                    )
+                    Text(
+                        text = "DEALING...",
+                        color = CasinoGoldLight,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Serif,
+                        letterSpacing = 1.5.sp
+                    )
+                }
+            }
+        } else when (gameState) {
             is GameState.HandResolved -> {
                 OutcomeBanner(
                     outcome = gameState.outcome,
@@ -466,7 +545,7 @@ private fun CenterFeltSection(gameState: GameState) {
                         )
                         Text(
                             text = "${gameState.bet} min",
-                            color = CasinoGoldLight,
+                            color = CasinoGold,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.ExtraBold,
                             fontFamily = FontFamily.Monospace
@@ -477,8 +556,8 @@ private fun CenterFeltSection(gameState: GameState) {
             is GameState.Betting -> {
                 Text(
                     text = "♠ BLACKJACK PAYS 3 TO 2 ♠",
-                    color = CasinoGold.copy(alpha = 0.35f),
-                    fontSize = 11.sp,
+                    color = CasinoGoldLight.copy(alpha = 0.6f),
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 2.sp,
                     fontFamily = FontFamily.Serif
@@ -499,6 +578,7 @@ private fun CenterFeltSection(gameState: GameState) {
 @Composable
 private fun BottomControlsDock(
     gameState: GameState,
+    isDealingActive: Boolean,
     timeBalance: Int,
     selectedWager: Int,
     lastWager: Int,
@@ -524,30 +604,33 @@ private fun BottomControlsDock(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            when (gameState) {
-                is GameState.Betting -> {
+            when {
+                gameState is GameState.Betting -> {
                     BettingDockContent(
                         timeBalance = timeBalance,
+                        isDealingActive = isDealingActive,
                         selectedWager = selectedWager,
                         onWagerChange = onWagerChange,
                         onPlaceBet = onPlaceBet,
                         onEmergencyGrant = onEmergencyGrant
                     )
                 }
-                is GameState.PlayerTurn -> {
+                gameState is GameState.PlayerTurn -> {
                     PlayerTurnDockContent(
+                        isDealingActive = isDealingActive,
                         onHit = onHit,
                         onStand = onStand
                     )
                 }
-                is GameState.DealerTurn -> {
-                    Box(Modifier.height(56.dp), contentAlignment = Alignment.Center) {
+                gameState is GameState.DealerTurn -> {
+                    Box(Modifier.height(54.dp), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = CasinoGold, modifier = Modifier.size(28.dp))
                     }
                 }
-                is GameState.HandResolved -> {
+                gameState is GameState.HandResolved -> {
                     HandResolvedDockContent(
                         timeBalance = timeBalance,
+                        isDealingActive = isDealingActive,
                         lastWager = lastWager,
                         onNewHand = onNewHand,
                         onRebet = { onPlaceBet(it) },
@@ -562,20 +645,20 @@ private fun BottomControlsDock(
 @Composable
 private fun BettingDockContent(
     timeBalance: Int,
+    isDealingActive: Boolean,
     selectedWager: Int,
     onWagerChange: (Int) -> Unit,
     onPlaceBet: (Int) -> Unit,
     onEmergencyGrant: () -> Unit
 ) {
     if (timeBalance <= 0) {
-        // Out of screen time state
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
                 text = "SCREEN TIME DEPLETED",
-                color = SuitRed,
+                color = AlertBorderRed,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 1.sp
@@ -632,7 +715,7 @@ private fun BettingDockContent(
             ) {
                 Text(
                     text = "$selectedWager min",
-                    color = CasinoGoldLight,
+                    color = CasinoGold,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace
@@ -640,11 +723,14 @@ private fun BettingDockContent(
             }
 
             TextButton(
-                onClick = { onWagerChange(1) },
+                onClick = {
+                    SoundManager.playTap()
+                    onWagerChange(1)
+                },
                 contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
                 modifier = Modifier.height(28.dp)
             ) {
-                Text("Clear", color = TextTertiary, fontSize = 11.sp)
+                Text("Reset", color = TextTertiary, fontSize = 11.sp)
             }
         }
     }
@@ -658,26 +744,26 @@ private fun BettingDockContent(
         CasinoChip(
             label = "1m",
             baseColor = ChipWhite,
-            stripeColor = CasinoGold,
+            stripeColor = Color(0xFF455A64),
             textColor = TextDark,
             onClick = { onWagerChange(minOf(timeBalance, selectedWager + 1)) },
-            enabled = selectedWager + 1 <= timeBalance
+            enabled = !isDealingActive && selectedWager + 1 <= timeBalance
         )
         CasinoChip(
             label = "5m",
             baseColor = ChipBlue,
-            stripeColor = ChipWhite,
+            stripeColor = Color.White,
             textColor = Color.White,
             onClick = { onWagerChange(minOf(timeBalance, selectedWager + 5)) },
-            enabled = selectedWager + 5 <= timeBalance
+            enabled = !isDealingActive && selectedWager + 5 <= timeBalance
         )
         CasinoChip(
             label = "10m",
             baseColor = ChipGreen,
-            stripeColor = ChipWhite,
+            stripeColor = Color.White,
             textColor = Color.White,
             onClick = { onWagerChange(minOf(timeBalance, selectedWager + 10)) },
-            enabled = selectedWager + 10 <= timeBalance
+            enabled = !isDealingActive && selectedWager + 10 <= timeBalance
         )
         CasinoChip(
             label = "25m",
@@ -685,22 +771,25 @@ private fun BettingDockContent(
             stripeColor = CasinoGold,
             textColor = Color.White,
             onClick = { onWagerChange(minOf(timeBalance, selectedWager + 25)) },
-            enabled = selectedWager + 25 <= timeBalance
+            enabled = !isDealingActive && selectedWager + 25 <= timeBalance
         )
         CasinoChip(
             label = "MAX",
             baseColor = ChipBlack,
             stripeColor = CasinoGold,
-            textColor = CasinoGoldLight,
+            textColor = CasinoGold,
             onClick = { onWagerChange(timeBalance) },
-            enabled = timeBalance > 0
+            enabled = !isDealingActive && timeBalance > 0
         )
     }
 
-    // Deal Action Button
+    // Deal Action Button (Lustrous Gold Gradient)
     Button(
-        onClick = { onPlaceBet(selectedWager) },
-        enabled = selectedWager in 1..timeBalance,
+        onClick = {
+            SoundManager.playTap()
+            onPlaceBet(selectedWager)
+        },
+        enabled = !isDealingActive && selectedWager in 1..timeBalance,
         colors = ButtonDefaults.buttonColors(
             containerColor = CasinoGold,
             contentColor = TextDark,
@@ -716,14 +805,16 @@ private fun BettingDockContent(
         Text(
             text = "DEAL HAND ($selectedWager min)",
             fontSize = 15.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 1.sp
+            fontWeight = FontWeight.ExtraBold,
+            fontFamily = FontFamily.Serif,
+            letterSpacing = 1.2.sp
         )
     }
 }
 
 @Composable
 private fun PlayerTurnDockContent(
+    isDealingActive: Boolean,
     onHit: () -> Unit,
     onStand: () -> Unit
 ) {
@@ -733,14 +824,18 @@ private fun PlayerTurnDockContent(
             .padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // HIT Button (Emerald)
+        // HIT Button (Vibrant Emerald)
         Button(
-            onClick = onHit,
+            onClick = {
+                SoundManager.playTap()
+                onHit()
+            },
+            enabled = !isDealingActive,
             colors = ButtonDefaults.buttonColors(
                 containerColor = CasinoGreenLight,
-                contentColor = TextPrimary
+                contentColor = Color.White
             ),
-            border = androidx.compose.foundation.BorderStroke(1.dp, CasinoGreenHighlight),
+            border = androidx.compose.foundation.BorderStroke(1.dp, TimeBankMint),
             shape = RoundedCornerShape(14.dp),
             modifier = Modifier
                 .weight(1f)
@@ -757,14 +852,18 @@ private fun PlayerTurnDockContent(
             )
         }
 
-        // STAND Button (Crimson / Slate)
+        // STAND Button (Rich Burgundy)
         Button(
-            onClick = onStand,
+            onClick = {
+                SoundManager.playTap()
+                onStand()
+            },
+            enabled = !isDealingActive,
             colors = ButtonDefaults.buttonColors(
-                containerColor = SurfaceCardElevated,
-                contentColor = CasinoGoldLight
+                containerColor = ChipRed,
+                contentColor = Color.White
             ),
-            border = androidx.compose.foundation.BorderStroke(1.dp, BorderGold),
+            border = androidx.compose.foundation.BorderStroke(1.dp, CasinoGold),
             shape = RoundedCornerShape(14.dp),
             modifier = Modifier
                 .weight(1f)
@@ -786,6 +885,7 @@ private fun PlayerTurnDockContent(
 @Composable
 private fun HandResolvedDockContent(
     timeBalance: Int,
+    isDealingActive: Boolean,
     lastWager: Int,
     onNewHand: () -> Unit,
     onRebet: (Int) -> Unit,
@@ -798,7 +898,7 @@ private fun HandResolvedDockContent(
         ) {
             Text(
                 text = "OUT OF SCREEN TIME",
-                color = SuitRed,
+                color = AlertBorderRed,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -825,13 +925,14 @@ private fun HandResolvedDockContent(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Option to repeat previous bet directly if enough balance
         if (lastWager in 1..timeBalance) {
             OutlinedButton(
                 onClick = {
+                    SoundManager.playTap()
                     onNewHand()
                     onRebet(lastWager)
                 },
+                enabled = !isDealingActive,
                 border = androidx.compose.foundation.BorderStroke(1.dp, BorderGold),
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier
@@ -849,7 +950,11 @@ private fun HandResolvedDockContent(
 
         // Deal Next Hand
         Button(
-            onClick = onNewHand,
+            onClick = {
+                SoundManager.playTap()
+                onNewHand()
+            },
+            enabled = !isDealingActive,
             colors = ButtonDefaults.buttonColors(
                 containerColor = CasinoGold,
                 contentColor = TextDark
@@ -864,17 +969,9 @@ private fun HandResolvedDockContent(
                 text = "NEXT HAND",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.ExtraBold,
+                fontFamily = FontFamily.Serif,
                 letterSpacing = 1.sp
             )
         }
     }
 }
-
-private data class Hex<A, B, C, D, E, F>(
-    val first: A, val second: B, val third: C,
-    val fourth: D, val fifth: E, val sixth: F
-)
-
-private data class Quint<A, B, C, D, E>(
-    val first: A, val second: B, val third: C, val fourth: D, val fifth: E
-)

@@ -19,6 +19,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        com.placeholder.screentimeblackjack.util.SoundManager.init(this)
         enableEdgeToEdge()
         handleBlockedAppIntent(intent)
         setContent {

@@ -7,6 +7,7 @@ import com.placeholder.screentimeblackjack.data.AppDatabase
 import com.placeholder.screentimeblackjack.data.PlayerState
 import com.placeholder.screentimeblackjack.engine.BlackjackEngine
 import com.placeholder.screentimeblackjack.engine.GameState
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -14,6 +15,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import com.placeholder.screentimeblackjack.engine.Card
+import com.placeholder.screentimeblackjack.engine.Hand
+import com.placeholder.screentimeblackjack.engine.HandOutcome
+import com.placeholder.screentimeblackjack.util.SoundManager
 
 /**
  * ViewModel bridging the BlackjackEngine and Room persistence to the UI.
@@ -75,6 +80,18 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _safeguardBlockReason = MutableStateFlow<String?>(null)
     val safeguardBlockReason: StateFlow<String?> = _safeguardBlockReason.asStateFlow()
+
+    private val _isDealingActive = MutableStateFlow(false)
+    val isDealingActive: StateFlow<Boolean> = _isDealingActive.asStateFlow()
+
+    private val _displayedPlayerCards = MutableStateFlow<List<Card>>(emptyList())
+    val displayedPlayerCards: StateFlow<List<Card>> = _displayedPlayerCards.asStateFlow()
+
+    private val _displayedDealerCards = MutableStateFlow<List<Card>>(emptyList())
+    val displayedDealerCards: StateFlow<List<Card>> = _displayedDealerCards.asStateFlow()
+
+    private val _isDealerHoleCardHidden = MutableStateFlow(true)
+    val isDealerHoleCardHidden: StateFlow<Boolean> = _isDealerHoleCardHidden.asStateFlow()
 
     init {
         refreshPermissions()
@@ -267,25 +284,139 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
             // Passed all safeguards — proceed with placing bet
             _safeguardBlockReason.value = null
+            _isDealingActive.value = true
+            _isDealerHoleCardHidden.value = true
+            _displayedPlayerCards.value = emptyList()
+            _displayedDealerCards.value = emptyList()
+
             eng.placeBet(amount)
-            syncState(eng)
+
+            val targetPlayerCards = when (val s = eng.state) {
+                is GameState.PlayerTurn -> s.playerHand.cards
+                is GameState.HandResolved -> s.playerHand.cards
+                else -> emptyList()
+            }
+            val targetDealerCards = when (val s = eng.state) {
+                is GameState.PlayerTurn -> s.dealerHand.cards
+                is GameState.HandResolved -> s.dealerHand.cards
+                else -> emptyList()
+            }
+
+            _timeBalance.value = eng.timeBalance
+            _gameState.value = GameState.PlayerTurn(Hand(emptyList()), Hand(emptyList()), amount, eng.timeBalance)
+
+            // Step 1: Player Card 1
+            delay(120)
+            SoundManager.playCardDeal()
+            _displayedPlayerCards.value = targetPlayerCards.take(1)
+
+            // Step 2: Dealer Hole Card (face down)
+            delay(220)
+            SoundManager.playCardDeal()
+            _displayedDealerCards.value = targetDealerCards.take(1)
+
+            // Step 3: Player Card 2
+            delay(220)
+            SoundManager.playCardDeal()
+            _displayedPlayerCards.value = targetPlayerCards.take(2)
+
+            // Step 4: Dealer Upcard
+            delay(220)
+            SoundManager.playCardDeal()
+            _displayedDealerCards.value = targetDealerCards.take(2)
+
+            // Step 5: Check immediate natural blackjack
+            if (eng.state is GameState.HandResolved) {
+                val res = eng.state as GameState.HandResolved
+                delay(350)
+                _isDealerHoleCardHidden.value = false
+                SoundManager.playCardDeal()
+                delay(400)
+                when (res.outcome) {
+                    HandOutcome.PLAYER_BLACKJACK -> SoundManager.playBlackjack()
+                    HandOutcome.PLAYER_WIN -> SoundManager.playWin()
+                    HandOutcome.PUSH -> SoundManager.playPush()
+                    HandOutcome.DEALER_WIN -> SoundManager.playBust()
+                }
+                syncState(eng)
+            } else {
+                syncState(eng)
+            }
+            _isDealingActive.value = false
         }
     }
 
     fun hit() {
         val eng = engine ?: return
-        eng.hit()
-        syncState(eng)
+        if (_isDealingActive.value) return
+        viewModelScope.launch {
+            _isDealingActive.value = true
+            eng.hit()
+
+            val targetPlayerCards = when (val s = eng.state) {
+                is GameState.PlayerTurn -> s.playerHand.cards
+                is GameState.HandResolved -> s.playerHand.cards
+                else -> emptyList()
+            }
+            SoundManager.playCardDeal()
+            _displayedPlayerCards.value = targetPlayerCards
+            delay(320)
+
+            if (eng.state is GameState.HandResolved) {
+                val res = eng.state as GameState.HandResolved
+                _isDealerHoleCardHidden.value = false
+                SoundManager.playBust()
+                delay(400)
+                syncState(eng)
+            } else {
+                syncState(eng)
+            }
+            _isDealingActive.value = false
+        }
     }
 
     fun stand() {
         val eng = engine ?: return
-        eng.stand()
-        syncState(eng)
+        if (_isDealingActive.value) return
+        viewModelScope.launch {
+            _isDealingActive.value = true
+            eng.stand()
+            val res = eng.state as? GameState.HandResolved ?: return@launch
+            val finalDealerCards = res.dealerHand.cards
+
+            // 1. Flip dealer hole card
+            SoundManager.playCardDeal()
+            _isDealerHoleCardHidden.value = false
+            delay(450)
+
+            // 2. Deal any dealer hit cards one-by-one with realistic casino cadence
+            if (finalDealerCards.size > 2) {
+                for (i in 2 until finalDealerCards.size) {
+                    SoundManager.playCardDeal()
+                    _displayedDealerCards.value = finalDealerCards.take(i + 1)
+                    delay(450)
+                }
+            }
+
+            delay(250)
+            when (res.outcome) {
+                HandOutcome.PLAYER_BLACKJACK -> SoundManager.playBlackjack()
+                HandOutcome.PLAYER_WIN -> SoundManager.playWin()
+                HandOutcome.PUSH -> SoundManager.playPush()
+                HandOutcome.DEALER_WIN -> SoundManager.playBust()
+            }
+            syncState(eng)
+            _isDealingActive.value = false
+        }
     }
 
     fun startNewHand() {
         val eng = engine ?: return
+        SoundManager.playTap()
+        _isDealingActive.value = false
+        _displayedPlayerCards.value = emptyList()
+        _displayedDealerCards.value = emptyList()
+        _isDealerHoleCardHidden.value = true
         eng.startNewHand()
         syncState(eng)
     }
