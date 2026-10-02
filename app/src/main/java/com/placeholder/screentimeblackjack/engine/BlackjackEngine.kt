@@ -143,6 +143,18 @@ class BlackjackEngine(
     }
 
     /**
+     * Consume screen time minutes (e.g. background usage tracked by accessibility service).
+     * Floors at 0.
+     */
+    fun consumeTime(minutes: Int) {
+        require(minutes > 0) { "Minutes to consume must be positive, was $minutes" }
+        timeBalance = (timeBalance - minutes).coerceAtLeast(0)
+        if (_state is GameState.Betting) {
+            _state = GameState.Betting(timeBalance)
+        }
+    }
+
+    /**
      * Reset balance to a specific amount (e.g. daily refresh).
      */
     fun resetBalance(amount: Int = 60) {

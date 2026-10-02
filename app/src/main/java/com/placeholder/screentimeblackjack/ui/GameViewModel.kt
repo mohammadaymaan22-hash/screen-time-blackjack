@@ -8,8 +8,10 @@ import com.placeholder.screentimeblackjack.data.PlayerState
 import com.placeholder.screentimeblackjack.engine.BlackjackEngine
 import com.placeholder.screentimeblackjack.engine.GameState
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
@@ -20,7 +22,8 @@ import kotlinx.coroutines.launch
  */
 class GameViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val dao = AppDatabase.getInstance(application).playerStateDao()
+    private val playerDao = AppDatabase.getInstance(application).playerStateDao()
+    private val blockedAppDao = AppDatabase.getInstance(application).blockedAppDao()
 
     private var engine: BlackjackEngine? = null
 
@@ -34,15 +37,108 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private val _isReady = MutableStateFlow(false)
     val isReady: StateFlow<Boolean> = _isReady.asStateFlow()
 
+    /** Blocked apps list observed from database */
+    val blockedApps: StateFlow<List<com.placeholder.screentimeblackjack.data.BlockedApp>> =
+        blockedAppDao.getAllFlow().stateIn(
+            viewModelScope,
+            kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000),
+            emptyList()
+        )
+
+    private val _isAccessibilityEnabled = MutableStateFlow(false)
+    val isAccessibilityEnabled: StateFlow<Boolean> = _isAccessibilityEnabled.asStateFlow()
+
+    private val _isBatteryOptimizationIgnored = MutableStateFlow(false)
+    val isBatteryOptimizationIgnored: StateFlow<Boolean> = _isBatteryOptimizationIgnored.asStateFlow()
+
+    private val _blockedAppAlert = MutableStateFlow<String?>(null)
+    val blockedAppAlert: StateFlow<String?> = _blockedAppAlert.asStateFlow()
+
     init {
+        refreshPermissions()
+        seedDefaultBlockedAppsIfEmpty()
         viewModelScope.launch {
-            val saved = dao.get()
+            val saved = playerDao.get()
             val balance = saved?.timeBalance ?: 60
 
             engine = BlackjackEngine(initialBalance = balance)
             _timeBalance.value = balance
             _gameState.value = GameState.Betting(balance)
             _isReady.value = true
+        }
+    }
+
+    fun refreshPermissions() {
+        val app = getApplication<Application>()
+        _isAccessibilityEnabled.value = com.placeholder.screentimeblackjack.util.PermissionHelper.isAccessibilityServiceEnabled(app)
+        _isBatteryOptimizationIgnored.value = com.placeholder.screentimeblackjack.util.PermissionHelper.isBatteryOptimizationIgnored(app)
+    }
+
+    fun setBlockedAppAlert(pkg: String?) {
+        _blockedAppAlert.value = pkg
+    }
+
+    fun clearBlockedAppAlert() {
+        _blockedAppAlert.value = null
+    }
+
+    private fun seedDefaultBlockedAppsIfEmpty() {
+        viewModelScope.launch {
+            val existing = blockedAppDao.getActiveBlockedApps()
+            if (existing.isEmpty()) {
+                val defaults = listOf(
+                    com.placeholder.screentimeblackjack.data.BlockedApp("com.instagram.android", "Instagram"),
+                    com.placeholder.screentimeblackjack.data.BlockedApp("com.zhiliaoapp.musically", "TikTok"),
+                    com.placeholder.screentimeblackjack.data.BlockedApp("com.twitter.android", "X (Twitter)"),
+                    com.placeholder.screentimeblackjack.data.BlockedApp("com.google.android.youtube", "YouTube")
+                )
+                defaults.forEach { blockedAppDao.insertOrUpdate(it) }
+            }
+        }
+    }
+
+    fun addBlockedApp(packageName: String, appName: String) {
+        viewModelScope.launch {
+            blockedAppDao.insertOrUpdate(
+                com.placeholder.screentimeblackjack.data.BlockedApp(
+                    packageName = packageName.trim(),
+                    appName = appName.trim().ifEmpty { packageName.trim() },
+                    isBlocked = true
+                )
+            )
+        }
+    }
+
+    fun toggleAppBlocked(app: com.placeholder.screentimeblackjack.data.BlockedApp) {
+        viewModelScope.launch {
+            blockedAppDao.insertOrUpdate(app.copy(isBlocked = !app.isBlocked))
+        }
+    }
+
+    fun removeBlockedApp(packageName: String) {
+        viewModelScope.launch {
+            blockedAppDao.deleteByPackage(packageName)
+        }
+    }
+
+    /** Refresh balance when returning to foreground in case AccessibilityService modified it */
+    fun refreshBalanceFromDb() {
+        viewModelScope.launch {
+            val saved = playerDao.get()
+            val current = saved?.timeBalance ?: 60
+            if (current != _timeBalance.value) {
+                engine?.let { eng ->
+                    if (current < eng.timeBalance) {
+                        // Time was consumed in background
+                        val diff = eng.timeBalance - current
+                        eng.consumeTime(diff)
+                    } else if (current > eng.timeBalance) {
+                        eng.addTime(current - eng.timeBalance)
+                    }
+                    _gameState.value = eng.state
+                    _timeBalance.value = eng.timeBalance
+                }
+            }
         }
     }
 
@@ -93,11 +189,11 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun persistBalance(balance: Int) {
         viewModelScope.launch {
-            val existing = dao.get()
+            val existing = playerDao.get()
             if (existing != null) {
-                dao.updateBalance(balance)
+                playerDao.updateBalance(balance)
             } else {
-                dao.upsert(PlayerState(timeBalance = balance))
+                playerDao.upsert(PlayerState(timeBalance = balance))
             }
         }
     }

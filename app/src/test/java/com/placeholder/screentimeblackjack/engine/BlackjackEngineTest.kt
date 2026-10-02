@@ -404,4 +404,26 @@ class BlackjackEngineTest {
         val engine = BlackjackEngine(initialBalance = 200)
         assertEquals(200, engine.timeBalance)
     }
+
+    // ── consumeTime mechanics (Phase 2) ──
+
+    @Test
+    fun `consumeTime decrements balance properly`() {
+        val engine = BlackjackEngine(initialBalance = 60)
+        engine.consumeTime(15)
+        assertEquals(45, engine.timeBalance)
+    }
+
+    @Test
+    fun `consumeTime floors at 0 when requested minutes exceed balance`() {
+        val engine = BlackjackEngine(initialBalance = 10)
+        engine.consumeTime(25)
+        assertEquals(0, engine.timeBalance)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `consumeTime rejects zero or negative amounts`() {
+        val engine = BlackjackEngine(initialBalance = 50)
+        engine.consumeTime(0)
+    }
 }
