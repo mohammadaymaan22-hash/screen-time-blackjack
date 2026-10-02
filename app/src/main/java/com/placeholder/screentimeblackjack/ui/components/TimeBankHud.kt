@@ -30,6 +30,7 @@ fun TimeBankHud(
     balanceMinutes: Int,
     balanceSeconds: Int = balanceMinutes * 60,
     isActivelyTracking: Boolean = false,
+    selectedAppName: String? = null,
     modifier: Modifier = Modifier
 ) {
     val totalSeconds = if (balanceSeconds >= 0) balanceSeconds else balanceMinutes * 60
@@ -89,7 +90,7 @@ fun TimeBankHud(
 
                 Column {
                     Text(
-                        text = "TIME BANK VAULT",
+                        text = if (selectedAppName != null) "VAULT: ${selectedAppName.uppercase()}" else "TIME BANK VAULT",
                         color = CasinoGoldLight,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
@@ -98,7 +99,9 @@ fun TimeBankHud(
                     )
                     Text(
                         text = when {
+                            isDepleted && selectedAppName != null -> "$selectedAppName IS LOCKED (0 MIN)"
                             isDepleted -> "DIGITAL CURFEW ACTIVE"
+                            isActivelyTracking && selectedAppName != null -> "COUNTDOWN ACTIVE ($selectedAppName)"
                             isActivelyTracking -> "COUNTDOWN ACTIVE (IN USE)"
                             else -> "PAUSED (ONLY COUNTS IN APPS)"
                         },

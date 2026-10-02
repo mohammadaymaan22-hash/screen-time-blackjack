@@ -4,6 +4,8 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -43,6 +45,10 @@ fun GameScreen(viewModel: GameViewModel) {
     val isDealerHoleCardHidden by viewModel.isDealerHoleCardHidden.collectAsState()
     val timeBalanceSeconds by viewModel.timeBalanceSeconds.collectAsState()
     val isActivelyTracking by viewModel.isActivelyTracking.collectAsState()
+    val blockedApps by viewModel.blockedApps.collectAsState()
+    val selectedAppPackage by viewModel.selectedAppPackage.collectAsState()
+    val appSecondsMap by viewModel.appSecondsMap.collectAsState()
+    val activeMonitoredPackage by viewModel.activeMonitoredPackage.collectAsState()
 
     var showRulesDialog by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
@@ -163,11 +169,31 @@ fun GameScreen(viewModel: GameViewModel) {
                 verticalArrangement = Arrangement.SpaceBetween,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                // App Vault Selector
+                val activeBlockedApps = blockedApps.filter { it.isBlocked }
+                if (activeBlockedApps.isNotEmpty()) {
+                    AppVaultSelector(
+                        blockedApps = activeBlockedApps,
+                        selectedAppPackage = selectedAppPackage,
+                        appSecondsMap = appSecondsMap,
+                        onSelectApp = { pkg ->
+                            SoundManager.playTap()
+                            viewModel.selectApp(pkg)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 4.dp)
+                    )
+                }
+
+                val selectedApp = blockedApps.find { it.packageName == selectedAppPackage }
+
                 // Time Bank Currency HUD
                 TimeBankHud(
                     balanceMinutes = timeBalance,
                     balanceSeconds = timeBalanceSeconds,
-                    isActivelyTracking = isActivelyTracking,
+                    isActivelyTracking = isActivelyTracking && activeMonitoredPackage == selectedAppPackage,
+                    selectedAppName = selectedApp?.appName,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 2.dp, bottom = 2.dp)
@@ -979,3 +1005,86 @@ private fun HandResolvedDockContent(
         }
     }
 }
+
+@Composable
+fun AppVaultSelector(
+    blockedApps: List<com.placeholder.screentimeblackjack.data.BlockedApp>,
+    selectedAppPackage: String?,
+    appSecondsMap: Map<String, Int>,
+    onSelectApp: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    LazyRow(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(horizontal = 2.dp)
+    ) {
+        items(blockedApps, key = { it.packageName }) { app ->
+            val isSelected = app.packageName == selectedAppPackage
+            val sec = appSecondsMap[app.packageName] ?: app.timeBalanceSeconds
+            val min = (sec + 59) / 60
+            val isDepleted = sec <= 0
+
+            val borderColor = when {
+                isSelected -> CasinoGold
+                isDepleted -> AlertBorderRed.copy(alpha = 0.6f)
+                else -> BorderGold.copy(alpha = 0.3f)
+            }
+            val containerColor = when {
+                isSelected -> SurfaceCardElevated
+                isDepleted -> Color(0xFF2A1515)
+                else -> SurfaceCard.copy(alpha = 0.85f)
+            }
+
+            Surface(
+                onClick = { onSelectApp(app.packageName) },
+                shape = RoundedCornerShape(12.dp),
+                color = containerColor,
+                border = androidx.compose.foundation.BorderStroke(if (isSelected) 1.5.dp else 1.dp, borderColor)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    if (isSelected) {
+                        Text(
+                            text = "♠",
+                            color = CasinoGold,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Text(
+                        text = app.appName,
+                        color = if (isSelected) Color.White else TextSecondary,
+                        fontSize = 12.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = when {
+                            isDepleted -> FeltRed
+                            isSelected -> CasinoGold.copy(alpha = 0.25f)
+                            else -> CasinoSurfaceDark
+                        }
+                    ) {
+                        Text(
+                            text = if (isDepleted) "0m" else "${min}m",
+                            color = when {
+                                isDepleted -> Color.White
+                                isSelected -> CasinoGoldLight
+                                else -> TextSecondary
+                            },
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+

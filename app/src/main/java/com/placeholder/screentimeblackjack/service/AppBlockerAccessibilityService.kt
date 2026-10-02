@@ -5,16 +5,19 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
+import android.widget.Toast
 import com.placeholder.screentimeblackjack.util.UsageTimeTracker
 
 /**
  * Real-time foreground app monitoring via AccessibilityService.
  *
- * Intercepts window state and window hierarchy changes to determine which app is actively
- * on screen and being used by the user. Delegates countdown, pause-on-background,
- * and access gating to [UsageTimeTracker].
+ * When an app is out of time (0 min), intercepts access by immediately triggering
+ * [GLOBAL_ACTION_HOME] and displaying a brief toast notice. Does not hijack the screen
+ * with Screen Time Casino.
  */
 class AppBlockerAccessibilityService : AccessibilityService() {
 
@@ -25,7 +28,12 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         Log.i(TAG, "AppBlockerAccessibilityService connected")
         Companion.isServiceRunning = true
 
-        // Initialize second-by-second usage tracker
+        // Wire kick-to-home callback
+        UsageTimeTracker.blockCallback = { packageName, appName ->
+            blockAndSendHome(packageName, appName)
+        }
+
+        // Initialize per-app time tracker
         UsageTimeTracker.init(this)
 
         // Automatically start the foreground keepalive service with status notification
@@ -44,7 +52,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
 
         val pkgName = event.packageName?.toString() ?: return
 
-        // 1. Process package visible event via UsageTimeTracker
+        // 1. Process package event
         UsageTimeTracker.onPackageVisible(this, pkgName)
 
         // 2. Also verify against the active root window (ground truth)
@@ -54,7 +62,27 @@ class AppBlockerAccessibilityService : AccessibilityService() {
                 UsageTimeTracker.onPackageVisible(this, rootPkg)
             }
         } catch (e: Exception) {
-            // Ignore security or accessibility hierarchy query exceptions
+            // Ignore accessibility hierarchy query exceptions
+        }
+    }
+
+    private fun blockAndSendHome(packageName: String, appName: String) {
+        Log.i(TAG, "Gating access to $packageName ($appName): returning to HOME screen")
+
+        // 1. Return to Home screen immediately
+        performGlobalAction(GLOBAL_ACTION_HOME)
+
+        // 2. Show brief non-intrusive Toast notice on main thread
+        Handler(Looper.getMainLooper()).post {
+            try {
+                Toast.makeText(
+                    applicationContext,
+                    "$appName is locked (0 min remaining)",
+                    Toast.LENGTH_SHORT
+                ).show()
+            } catch (e: Exception) {
+                Log.w(TAG, "Could not show block toast", e)
+            }
         }
     }
 
@@ -93,6 +121,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
 
     override fun onDestroy() {
         super.onDestroy()
+        UsageTimeTracker.blockCallback = null
         screenReceiver?.let {
             try {
                 unregisterReceiver(it)

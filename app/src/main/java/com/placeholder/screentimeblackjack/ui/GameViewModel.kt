@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -19,6 +20,7 @@ import com.placeholder.screentimeblackjack.engine.Card
 import com.placeholder.screentimeblackjack.engine.Hand
 import com.placeholder.screentimeblackjack.engine.HandOutcome
 import com.placeholder.screentimeblackjack.util.SoundManager
+import com.placeholder.screentimeblackjack.util.UsageTimeTracker
 
 /**
  * ViewModel bridging the BlackjackEngine and Room persistence to the UI.
@@ -93,8 +95,25 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private val _isDealerHoleCardHidden = MutableStateFlow(true)
     val isDealerHoleCardHidden: StateFlow<Boolean> = _isDealerHoleCardHidden.asStateFlow()
 
-    val timeBalanceSeconds: StateFlow<Int> = com.placeholder.screentimeblackjack.util.UsageTimeTracker.secondsRemaining
-    val isActivelyTracking: StateFlow<Boolean> = com.placeholder.screentimeblackjack.util.UsageTimeTracker.isActivelyTracking
+    val appSecondsMap: StateFlow<Map<String, Int>> = UsageTimeTracker.appSecondsMap
+    val isActivelyTracking: StateFlow<Boolean> = UsageTimeTracker.isActivelyTracking
+    val activeMonitoredPackage: StateFlow<String?> = UsageTimeTracker.activeMonitoredPackage
+    val activeAppName: StateFlow<String?> = UsageTimeTracker.activeAppName
+    val activeAppSeconds: StateFlow<Int> = UsageTimeTracker.activeAppSeconds
+
+    private val _selectedAppPackage = MutableStateFlow<String?>("com.google.android.youtube")
+    val selectedAppPackage: StateFlow<String?> = _selectedAppPackage.asStateFlow()
+
+    val timeBalanceSeconds: StateFlow<Int> = combine(
+        _selectedAppPackage,
+        appSecondsMap
+    ) { pkg, map ->
+        if (pkg != null) map[pkg] ?: (15 * 60) else 0
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        15 * 60
+    )
 
     init {
         refreshPermissions()
@@ -112,12 +131,14 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                     dailyLossCapMinutes = 0
                 ))
             }
-            val balance = saved?.timeBalance ?: 60
+            UsageTimeTracker.init(application)
+            val selectedPkg = _selectedAppPackage.value ?: "com.google.android.youtube"
+            val appSec = UsageTimeTracker.getAppSeconds(application, selectedPkg)
+            val balance = (appSec + 59) / 60
 
             engine = BlackjackEngine(initialBalance = balance)
             _timeBalance.value = balance
             _gameState.value = GameState.Betting(balance)
-            com.placeholder.screentimeblackjack.util.UsageTimeTracker.init(application)
             _isReady.value = true
         }
     }
@@ -141,25 +162,60 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             val existing = blockedAppDao.getActiveBlockedApps()
             if (existing.isEmpty()) {
                 val defaults = listOf(
-                    com.placeholder.screentimeblackjack.data.BlockedApp("com.instagram.android", "Instagram"),
-                    com.placeholder.screentimeblackjack.data.BlockedApp("com.zhiliaoapp.musically", "TikTok"),
-                    com.placeholder.screentimeblackjack.data.BlockedApp("com.twitter.android", "X (Twitter)"),
-                    com.placeholder.screentimeblackjack.data.BlockedApp("com.google.android.youtube", "YouTube")
+                    com.placeholder.screentimeblackjack.data.BlockedApp("com.google.android.youtube", "YouTube", timeBalanceMinutes = 15, timeBalanceSeconds = 15 * 60),
+                    com.placeholder.screentimeblackjack.data.BlockedApp("com.instagram.android", "Instagram", timeBalanceMinutes = 15, timeBalanceSeconds = 15 * 60),
+                    com.placeholder.screentimeblackjack.data.BlockedApp("com.zhiliaoapp.musically", "TikTok", timeBalanceMinutes = 15, timeBalanceSeconds = 15 * 60),
+                    com.placeholder.screentimeblackjack.data.BlockedApp("com.twitter.android", "X (Twitter)", timeBalanceMinutes = 15, timeBalanceSeconds = 15 * 60)
                 )
-                defaults.forEach { blockedAppDao.insertOrUpdate(it) }
+                defaults.forEach {
+                    blockedAppDao.insertOrUpdate(it)
+                    UsageTimeTracker.setAppSeconds(getApplication(), it.packageName, it.timeBalanceSeconds)
+                }
             }
+        }
+    }
+
+    fun selectApp(packageName: String) {
+        _selectedAppPackage.value = packageName
+        val appSec = UsageTimeTracker.getAppSeconds(getApplication(), packageName)
+        val balance = (appSec + 59) / 60
+        engine?.resetBalance(balance)
+        _timeBalance.value = balance
+        _gameState.value = GameState.Betting(balance)
+    }
+
+    fun addTimeToApp(packageName: String, minutes: Int) {
+        UsageTimeTracker.addAppMinutes(getApplication(), packageName, minutes)
+        if (packageName == _selectedAppPackage.value) {
+            val eng = engine ?: return
+            eng.addTime(minutes)
+            _timeBalance.value = eng.timeBalance
+            _gameState.value = eng.state
+        }
+    }
+
+    fun setTimeToApp(packageName: String, minutes: Int) {
+        val seconds = (minutes * 60).coerceAtLeast(0)
+        UsageTimeTracker.setAppSeconds(getApplication(), packageName, seconds)
+        if (packageName == _selectedAppPackage.value) {
+            val eng = engine ?: return
+            eng.resetBalance(minutes)
+            _timeBalance.value = minutes
+            _gameState.value = GameState.Betting(minutes)
         }
     }
 
     fun addBlockedApp(packageName: String, appName: String) {
         viewModelScope.launch {
-            blockedAppDao.insertOrUpdate(
-                com.placeholder.screentimeblackjack.data.BlockedApp(
-                    packageName = packageName.trim(),
-                    appName = appName.trim().ifEmpty { packageName.trim() },
-                    isBlocked = true
-                )
+            val newApp = com.placeholder.screentimeblackjack.data.BlockedApp(
+                packageName = packageName.trim(),
+                appName = appName.trim().ifEmpty { packageName.trim() },
+                isBlocked = true,
+                timeBalanceMinutes = 15,
+                timeBalanceSeconds = 15 * 60
             )
+            blockedAppDao.insertOrUpdate(newApp)
+            UsageTimeTracker.setAppSeconds(getApplication(), newApp.packageName, 15 * 60)
         }
     }
 
@@ -178,25 +234,22 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     /** Refresh balance when returning to foreground in case active usage consumed time */
     fun refreshBalanceFromDb() {
         val app = getApplication<Application>()
-        com.placeholder.screentimeblackjack.util.UsageTimeTracker.init(app)
-        viewModelScope.launch {
-            val saved = playerDao.get()
-            val savedDbMin = saved?.timeBalance ?: 60
-            val trackerSec = com.placeholder.screentimeblackjack.util.UsageTimeTracker.secondsRemaining.value
-            val current = if (trackerSec > 0) (trackerSec + 59) / 60 else savedDbMin
+        UsageTimeTracker.init(app)
+        val selectedPkg = _selectedAppPackage.value ?: return
+        val currentSec = UsageTimeTracker.getAppSeconds(app, selectedPkg)
+        val current = if (currentSec > 0) (currentSec + 59) / 60 else 0
 
-            if (current != _timeBalance.value) {
-                engine?.let { eng ->
-                    if (current < eng.timeBalance) {
-                        // Time was consumed in monitored app
-                        val diff = eng.timeBalance - current
-                        eng.consumeTime(diff)
-                    } else if (current > eng.timeBalance) {
-                        eng.addTime(current - eng.timeBalance)
-                    }
-                    _gameState.value = eng.state
-                    _timeBalance.value = eng.timeBalance
+        if (current != _timeBalance.value) {
+            engine?.let { eng ->
+                if (current < eng.timeBalance) {
+                    // Time was consumed in monitored app
+                    val diff = eng.timeBalance - current
+                    eng.consumeTime(diff)
+                } else if (current > eng.timeBalance) {
+                    eng.addTime(current - eng.timeBalance)
                 }
+                _gameState.value = eng.state
+                _timeBalance.value = eng.timeBalance
             }
         }
     }
@@ -433,14 +486,16 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     fun addTime(minutes: Int) {
         val eng = engine ?: return
         eng.addTime(minutes)
-        com.placeholder.screentimeblackjack.util.UsageTimeTracker.setBalanceMinutes(getApplication(), eng.timeBalance)
+        val selectedPkg = _selectedAppPackage.value ?: "com.google.android.youtube"
+        UsageTimeTracker.addAppMinutes(getApplication(), selectedPkg, minutes)
         syncState(eng)
     }
 
     fun resetBalance(amount: Int = 60) {
         val eng = engine ?: return
         eng.resetBalance(amount)
-        com.placeholder.screentimeblackjack.util.UsageTimeTracker.setBalanceMinutes(getApplication(), eng.timeBalance)
+        val selectedPkg = _selectedAppPackage.value ?: "com.google.android.youtube"
+        UsageTimeTracker.setAppSeconds(getApplication(), selectedPkg, amount * 60)
         syncState(eng)
     }
 
@@ -452,7 +507,10 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val newState = eng.state
         _gameState.value = newState
         _timeBalance.value = eng.timeBalance
-        com.placeholder.screentimeblackjack.util.UsageTimeTracker.setBalanceMinutes(getApplication(), eng.timeBalance)
+        val selectedPkg = _selectedAppPackage.value
+        if (selectedPkg != null) {
+            UsageTimeTracker.setAppSeconds(getApplication(), selectedPkg, eng.timeBalance * 60)
+        }
 
         viewModelScope.launch {
             val existing = playerDao.get() ?: PlayerState()

@@ -45,6 +45,7 @@ fun SettingsDialog(
     val blockedApps by viewModel.blockedApps.collectAsState()
     val isAccessibilityEnabled by viewModel.isAccessibilityEnabled.collectAsState()
     val isBatteryOptimizationIgnored by viewModel.isBatteryOptimizationIgnored.collectAsState()
+    val appSecondsMap by viewModel.appSecondsMap.collectAsState()
 
     var newPackageInput by remember { mutableStateOf("") }
     var newAppNameInput by remember { mutableStateOf("") }
@@ -446,8 +447,11 @@ fun SettingsDialog(
                         }
                     } else {
                         items(blockedApps, key = { it.packageName }) { app ->
+                            val sec = appSecondsMap[app.packageName] ?: app.timeBalanceSeconds
                             BlockedAppItem(
                                 app = app,
+                                currentSeconds = sec,
+                                onAddMinutes = { mins -> viewModel.addTimeToApp(app.packageName, mins) },
                                 onToggle = { viewModel.toggleAppBlocked(app) },
                                 onDelete = { viewModel.removeBlockedApp(app.packageName) }
                             )
@@ -588,60 +592,115 @@ private fun PersistentServiceCard(context: Context) {
 @Composable
 private fun BlockedAppItem(
     app: BlockedApp,
+    currentSeconds: Int,
+    onAddMinutes: (Int) -> Unit,
     onToggle: () -> Unit,
     onDelete: () -> Unit
 ) {
-    Row(
+    val min = (currentSeconds + 59) / 60
+    val isDepleted = currentSeconds <= 0
+
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(12.dp))
             .background(CasinoGreenCardBg)
-            .border(1.dp, CasinoGoldDark.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+            .border(1.dp, CasinoGoldDark.copy(alpha = 0.25f), RoundedCornerShape(12.dp))
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = app.appName,
-                color = Color.White,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 14.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = app.packageName,
-                color = Color.White.copy(alpha = 0.5f),
-                fontSize = 11.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = app.appName,
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = app.packageName,
+                    color = Color.White.copy(alpha = 0.5f),
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Switch(
+                    checked = app.isBlocked,
+                    onCheckedChange = { onToggle() },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = CasinoGold,
+                        checkedTrackColor = CasinoGoldDark,
+                        uncheckedThumbColor = Color.Gray,
+                        uncheckedTrackColor = CasinoSurfaceDark
+                    )
+                )
+
+                IconButton(onClick = onDelete) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Remove",
+                        tint = FeltRed.copy(alpha = 0.8f),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
         }
 
+        // Time balance badge & Quick Add buttons
         Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Switch(
-                checked = app.isBlocked,
-                onCheckedChange = { onToggle() },
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = CasinoGold,
-                    checkedTrackColor = CasinoGoldDark,
-                    uncheckedThumbColor = Color.Gray,
-                    uncheckedTrackColor = CasinoSurfaceDark
+            Surface(
+                shape = RoundedCornerShape(6.dp),
+                color = if (isDepleted) FeltRed.copy(alpha = 0.8f) else SurfaceCardElevated,
+                border = androidx.compose.foundation.BorderStroke(1.dp, if (isDepleted) AlertBorderRed else BorderGold)
+            ) {
+                Text(
+                    text = if (isDepleted) "0m • Locked" else "${min}m remaining",
+                    color = if (isDepleted) Color.White else CasinoGoldLight,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                 )
-            )
+            }
 
-            IconButton(onClick = onDelete) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Remove",
-                    tint = FeltRed.copy(alpha = 0.8f),
-                    modifier = Modifier.size(20.dp)
-                )
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                OutlinedButton(
+                    onClick = { onAddMinutes(5) },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderGold.copy(alpha = 0.5f)),
+                    modifier = Modifier.height(28.dp)
+                ) {
+                    Text("+5m", color = CasinoGoldLight, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+
+                OutlinedButton(
+                    onClick = { onAddMinutes(15) },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, CasinoGold),
+                    modifier = Modifier.height(28.dp)
+                ) {
+                    Text("+15m", color = CasinoGold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }
 }
+
